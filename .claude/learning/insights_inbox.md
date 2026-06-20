@@ -1,0 +1,11 @@
+# insights_inbox — billige 1-Zeilen-Lektionen (getaktet destillieren)
+
+> Während der Arbeit: EINE Zeile pro wiederverwendbarer Lektion. Kategorien: EFFIZIENZ | WIRTSCHAFTLICHKEIT | TECHNIK. Mit Quelle (Datei/Welle). Am Session-Ende destillieren → `proposals.md` → Owner-Review → CLAUDE.md. KEIN Auto-Write pro Nachricht.
+
+- [2026-06-19] [EFFIZIENZ] Tiefe Globs über `~` timeouten → gezielt nach Roots oder PowerShell mit `-Filter` + Zeitstempel (Quelle: Datei-Suche TempConnect/ConnectCoreMaster).
+- [2026-06-19] [TECHNIK] Preview-Screenshot timeoutet bei offenem Drawer (Blur/Transition) → `preview_eval` zur Verifikation (Quelle: app Finder-Drawer).
+- [2026-06-20] [EFFIZIENZ] Workflow-Agenten schreiben mit driftender cwd → Dateien landeten teils in `app/docs`/`app/finalization` statt Root. Lehre: im Agent-Prompt **absoluten Zielpfad** vorgeben oder cwd fixieren; nach Bulk-Workflows Ablage per `find` prüfen + konsolidieren (Quelle: lbc-doku-bauplan-bulk).
+- [2026-06-20] [TECHNIK] Adversariale Verify-Kritiker fanden echten Enum-Widerspruch über zwei normative Docs (`profiles.role`) — Multi-Doc-Konsistenz lohnt eine dedizierte Verify-Phase (Quelle: Doku-Workflow Verify).
+- [2026-06-20] [EFFIZIENZ] Lange Bulk-Workflows laufen ins Session-/API-Limit → idempotent + resume-fähig bauen (`resumeFromRunId` cached Erfolge); 2× resume hat 5→25→42 Wellen vervollständigt (Quelle: lbc-doku-bauplan-bulk).
+- [2026-06-20] [TECHNIK] Adversarialer Review fand echte Sicherheits-/Korrektheitslücken, die Build/TS NICHT fangen: (1) RLS `profiles` `for all` ⇒ Self-Promotion zu staff — Policies immer pro Spalte denken, Rollen-/Statuswechsel nur via service_role; (2) PostgREST update/insert mit RLS-Denial liefert error=null + 0 rows ⇒ `.select()` anhängen und Zeilenzahl prüfen, sonst Schein-Erfolg; (3) insert-`with check` muss sicherheitsrelevante Spalten (verified/status/author_user_id) festnageln, sonst fälschbar. Lehre: nach jedem Backend-/RLS-Feature adversarial reviewen, nicht nur builden (Quelle: lbc-review-auth-staff-pwa).
+- [2026-06-20] [TECHNIK] Supabase↔Demo-Fallback: bei `isSupabaseConfigured` KEIN stiller localStorage-Fallback bei Fehlern (maskiert echte Fehlschläge als Erfolg) — Fallback nur wenn nicht konfiguriert (Quelle: data.ts Review-Fix).

@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="theme-color" content="#faf7ee"/>
+  <title>LokaleBauernConnect — Das Beste der Region. Direkt vom Hof.</title>
+  <meta name="description" content="Finde Höfe, Hofläden und Erzeuger in deiner Nähe. Verfügbarkeit sehen, reservieren, abholen — regional, saisonal, fair. Jetzt frühen Zugang sichern."/>
+  <meta name="robots" content="index,follow"/>
+  <link rel="canonical" href="https://lokalebauernconnect.de/"/>
+
+  <!-- Open Graph / Social -->
+  <meta property="og:type" content="website"/>
+  <meta property="og:locale" content="de_DE"/>
+  <meta property="og:title" content="LokaleBauernConnect — Das Beste der Region. Direkt vom Hof."/>
+  <meta property="og:description" content="Höfe in deiner Nähe finden, Verfügbarkeit sehen, reservieren, abholen. Regional, saisonal, fair."/>
+  <meta property="og:url" content="https://lokalebauernconnect.de/"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+
+  <style>
+  /* ════════════════════════════════════════════════════════════════
+     LokaleBauernConnect — Landing · "Editorial" Skin
+     Übernommen aus TempConnect [data-theme="editorial"] (LEX):
+     Papier/Creme-Magazin, System-Serife (keine externen Fonts → DSGVO),
+     Gold-Mono-Eyebrows, weinrote Kursiv-Akzente, Waldgrün-Signaturblöcke.
+     Token-Namen spiegeln --lex-* / --ds-* für spätere Portierung.
+     ════════════════════════════════════════════════════════════════ */
+  :root{
+    /* Editorial palette (LEX) */
+    --paper:       #faf7ee;
+    --cream:       #f4efe4;
+    --cream-warm:  #ebe4d3;
+    --forest:      #1f3a2e;
+    --forest-deep: #15291f;
+    --forest-soft: #2d4f3f;
+    --wine:        #7a2e2e;
+    --gold:        #b8935a;
+    --gold-deep:   #9c7b45;
+    --ink:         #14201a;
+    --muted:       #6b6457;
+    --line:        #d4cab3;
+    --line-soft:   #e3dac5;
+
+    /* On dark forest blocks */
+    --on-forest-head: #faf7ee;
+    --on-forest:      #ebe4d3;
+    --on-forest-soft: #b9bca8;
+
+    /* System type — no external requests */
+    --serif: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", "Times New Roman", serif;
+    --sans:  system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono:  ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+    --maxw: 1140px;
+    --r-md: 10px;
+    --r:    14px;
+    --r-lg: 18px;
+    --r-xl: 24px;
+    --shadow-forest: 0 18px 44px rgba(21,41,31,.22);
+    --ease: cubic-bezier(.2,.7,.2,1);
+  }
+
+  *,*::before,*::after{ box-sizing:border-box; }
+  [hidden]{ display:none !important; }
+  html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
+  @media (prefers-reduced-motion: reduce){ html{ scroll-behavior:auto; } *{ animation:none!important; transition:none!important; } }
+
+  body{
+    margin:0;
+    font-family:var(--sans);
+    font-size:16px;
+    line-height:1.65;
+    color:var(--ink);
+    background:var(--paper);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    overflow-x:hidden;
+  }
+  a{ color:inherit; text-decoration:none; }
+  img{ max-width:100%; display:block; }
+  ::selection{ background:rgba(31,58,46,.16); color:var(--forest-deep); }
+
+  /* Ambient warm wash + faint paper grain */
+  body::before{
+    content:""; position:fixed; inset:0; z-index:-2; pointer-events:none;
+    background:
+      radial-gradient(1000px 600px at 86% -12%, rgba(184,147,90,.12), transparent 60%),
+      radial-gradient(820px 520px at 4% 0%, rgba(31,58,46,.06), transparent 56%);
+  }
+  body::after{
+    content:""; position:fixed; inset:0; z-index:-1; pointer-events:none; opacity:.04;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .wrap{ max-width:var(--maxw); margin:0 auto; padding:0 24px; }
+
+  /* ── Eyebrow / section label (mono, gold) ─────────────────── */
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:10px;
+    font-family:var(--mono); font-size:11.5px; font-weight:600;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--gold-deep);
+  }
+  .eyebrow::before{ content:""; width:22px; height:1px; background:var(--gold); }
+  .section-head{ max-width:680px; }
+  .section-head--center{ margin:0 auto; text-align:center; }
+  .section-head--center .eyebrow::before{ display:none; }
+
+  h1,h2,h3{ font-family:var(--serif); font-weight:400; letter-spacing:-.015em; color:var(--forest-deep); margin:0; line-height:1.1; }
+  h2{ font-size:clamp(28px,4.2vw,44px); margin:18px 0 16px; }
+  h3{ font-size:21px; line-height:1.22; }
+  .lead{ color:var(--muted); font-size:clamp(16px,1.5vw,18px); line-height:1.72; }
+  em{ font-style:italic; color:var(--wine); }
+
+  /* ── Buttons ─────────────────────────────────────────────── */
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:9px;
+    padding:12px 20px; border-radius:var(--r-md); cursor:pointer;
+    font-family:var(--sans); font-size:15px; font-weight:600; line-height:1;
+    border:1px solid var(--line); background:var(--cream-warm); color:var(--forest);
+    transition:transform .15s var(--ease), background .2s, border-color .2s, color .2s;
+    white-space:nowrap;
+  }
+  .btn:hover{ background:var(--cream); border-color:var(--gold); transform:translateY(-1px); }
+  .btn:active{ transform:translateY(0) scale(.99); }
+  .btn--primary{ background:var(--forest); border-color:var(--forest-deep); color:var(--paper); font-weight:600; }
+  .btn--primary:hover{ background:var(--forest-deep); border-color:var(--forest-deep); color:var(--paper); }
+  .btn--gold{ background:var(--gold); border-color:var(--gold); color:var(--forest-deep); font-weight:700; }
+  .btn--gold:hover{ filter:brightness(1.04); background:var(--gold); border-color:var(--gold-deep); color:var(--forest-deep); }
+  .btn--lg{ padding:15px 26px; font-size:16px; }
+  .btn--block{ width:100%; }
+  .btn:focus-visible{ outline:2px solid var(--forest); outline-offset:3px; }
+
+  /* ── Topbar (floating editorial bar) ─────────────────────── */
+  .topbar{ position:sticky; top:12px; z-index:50; }
+  .topbar__inner{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    height:60px; padding:0 14px 0 18px;
+    background:rgba(250,247,238,.86); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+    border:1px solid var(--line); border-radius:var(--r-lg);
+    transition:box-shadow .3s, border-color .3s;
+  }
+  .topbar.scrolled .topbar__inner{ box-shadow:0 10px 30px rgba(21,41,31,.10); border-color:var(--gold); }
+  .brand{ display:flex; align-items:center; gap:11px; font-family:var(--serif); font-weight:400; font-size:19px; color:var(--forest-deep); letter-spacing:-.01em; }
+  .brand__mark{ width:30px; height:30px; border-radius:8px; display:grid; place-items:center; flex-shrink:0; background:var(--forest); color:var(--paper); }
+  .brand__mark svg{ width:18px; height:18px; }
+  .brand b{ font-weight:700; } .brand i{ font-style:italic; color:var(--wine); }
+  .nav{ display:flex; align-items:center; gap:4px; }
+  .nav a.link{ font-family:var(--sans); padding:9px 13px; border-radius:8px; font-size:14px; font-weight:600; color:var(--muted); transition:color .15s, background .15s; }
+  .nav a.link:hover{ color:var(--forest); background:rgba(31,58,46,.06); }
+  .nav__sep{ width:1px; height:22px; background:var(--line); margin:0 6px; }
+  .nav__cta{ display:flex; gap:10px; align-items:center; }
+  .burger{ display:none; width:42px; height:42px; border-radius:9px; border:1px solid var(--line); background:var(--cream-warm); color:var(--forest); cursor:pointer; }
+
+  /* ── Hero ────────────────────────────────────────────────── */
+  .hero{ padding:clamp(54px,8vw,108px) 0 clamp(40px,6vw,64px); }
+  .hero__badge{
+    display:inline-flex; align-items:center; gap:9px; margin-bottom:28px;
+    padding:7px 14px; border-radius:999px; font-family:var(--mono); font-size:11.5px; font-weight:600;
+    letter-spacing:.04em; color:var(--forest); border:1px solid var(--line); background:var(--cream-warm);
+  }
+  .hero__badge .dot{ width:7px; height:7px; border-radius:50%; background:var(--gold); box-shadow:0 0 0 4px rgba(184,147,90,.16); }
+  .hero h1{ font-size:clamp(42px,7vw,88px); line-height:1.02; letter-spacing:-.025em; max-width:15ch; color:var(--forest-deep); }
+  .hero p.lead{ margin:28px 0 0; max-width:58ch; font-size:clamp(17px,1.6vw,19px); }
+  .hero__cta{ display:flex; flex-wrap:wrap; gap:13px; margin-top:38px; }
+  .hero__meta{ display:flex; flex-wrap:wrap; gap:14px 30px; margin-top:36px; color:var(--muted); font-size:13.5px; }
+  .hero__meta span{ display:flex; align-items:center; gap:9px; }
+  .hero__meta span::before{ content:""; width:6px; height:6px; border-radius:50%; background:var(--gold); flex-shrink:0; }
+  .hero__meta b{ color:var(--ink); font-weight:700; font-family:var(--sans); }
+
+  /* ── Trust strip ─────────────────────────────────────────── */
+  .trust{ }
+  .trust__row{ display:flex; flex-wrap:wrap; gap:14px 30px; padding:20px 26px; justify-content:space-between;
+    background:var(--cream-warm); border:1px solid var(--line); border-radius:var(--r-lg); }
+  .trust__item{ display:flex; align-items:center; gap:11px; font-size:14px; font-weight:600; color:var(--forest); }
+  .trust__item svg{ width:18px; height:18px; color:var(--forest-soft); flex-shrink:0; }
+
+  /* ── Section frame ───────────────────────────────────────── */
+  section.block{ padding:clamp(58px,8vw,96px) 0; }
+  .divider{ height:1px; background:var(--line); border:0; margin:0; }
+
+  /* ── How it works ────────────────────────────────────────── */
+  .steps{ display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-top:50px; counter-reset:step; }
+  .step{ position:relative; padding:26px 22px; border:1px solid var(--line); border-radius:var(--r); background:var(--cream-warm); transition:border-color .2s, transform .2s; counter-increment:step; }
+  .step:hover{ border-color:var(--gold); transform:translateY(-3px); }
+  .step__n{ font-family:var(--mono); font-size:13px; font-weight:600; color:var(--paper); width:34px; height:34px; border-radius:50%; display:grid; place-items:center; background:var(--forest); border:1px solid var(--forest-deep); margin-bottom:16px; }
+  .step__n::before{ content:counter(step,decimal-leading-zero); }
+  .step h3{ font-size:18px; margin-bottom:8px; color:var(--forest-deep); }
+  .step p{ margin:0; font-size:14px; color:var(--muted); line-height:1.6; }
+
+  /* ── Product catalogue (no emoji — magazine index) ──────────── */
+  .prod-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:14px; margin-top:46px; }
+  .prod{ display:flex; align-items:baseline; gap:13px; padding:17px 18px; border-radius:var(--r-md);
+    border:1px solid var(--line); background:var(--cream-warm); transition:border-color .2s, transform .2s, background .2s; }
+  .prod:hover{ border-color:var(--gold); transform:translateY(-2px); background:var(--cream); }
+  .prod__n{ font-family:var(--mono); font-size:12px; font-weight:600; color:var(--gold-deep); letter-spacing:.04em; flex-shrink:0; }
+  .prod__t{ font-family:var(--serif); font-size:17px; color:var(--forest-deep); line-height:1.2; }
+
+  /* ── Seasonal (forest signature block) ───────────────────── */
+  .season{ display:grid; grid-template-columns:1.05fr .95fr; gap:36px; align-items:center;
+    padding:clamp(30px,4vw,52px); border-radius:var(--r-xl);
+    background:linear-gradient(150deg,var(--forest),var(--forest-deep)); border:1px solid var(--forest-deep); box-shadow:var(--shadow-forest); }
+  .season .eyebrow{ color:var(--gold); }
+  .season .eyebrow::before{ background:var(--gold); }
+  .season h2{ color:var(--on-forest-head); }
+  .season p{ color:var(--on-forest); }
+  .season__chips{ display:flex; flex-wrap:wrap; gap:10px; }
+  .chip{ display:inline-flex; align-items:center; gap:8px; padding:9px 15px; border-radius:999px; font-size:14px; color:var(--on-forest);
+    border:1px solid rgba(236,228,210,.2); background:rgba(236,228,210,.05); }
+  .chip .pulse{ width:7px; height:7px; border-radius:50%; background:var(--gold); flex-shrink:0; }
+
+  /* ── Two-audience split ──────────────────────────────────── */
+  .split{ display:grid; grid-template-columns:1fr 1fr; gap:22px; margin-top:50px; }
+  .panel{ padding:36px 34px; border-radius:var(--r-xl); border:1px solid var(--line); background:var(--cream-warm); display:flex; flex-direction:column; }
+  .panel--forest{ background:linear-gradient(155deg,var(--forest),var(--forest-deep)); border-color:var(--forest-deep); box-shadow:var(--shadow-forest); }
+  .panel__tag{ font-family:var(--mono); font-size:11.5px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:var(--gold-deep); margin-bottom:14px; }
+  .panel--forest .panel__tag{ color:var(--gold); }
+  .panel h3{ font-size:27px; margin-bottom:12px; color:var(--forest-deep); }
+  .panel--forest h3{ color:var(--on-forest-head); }
+  .panel p{ color:var(--muted); margin:0 0 22px; }
+  .panel--forest p{ color:var(--on-forest); }
+  .ul{ list-style:none; padding:0; margin:0 0 28px; display:grid; gap:12px; }
+  .ul li{ display:flex; gap:12px; font-size:15px; color:var(--ink); line-height:1.5; }
+  .panel--forest .ul li{ color:var(--on-forest); }
+  .ul li svg{ width:19px; height:19px; color:var(--forest-soft); flex-shrink:0; margin-top:2px; }
+  .panel--forest .ul li svg{ color:var(--gold); }
+  .panel .btn{ margin-top:auto; align-self:flex-start; }
+  .panel--forest .btn--gold{ background:var(--gold); color:var(--forest-deep); border-color:var(--gold); }
+
+  /* ── Waitlist / conversion (forest inset) ────────────────── */
+  .cta-wrap{ position:relative; padding:clamp(38px,5.5vw,64px) clamp(24px,5vw,60px); border-radius:var(--r-xl);
+    background:linear-gradient(150deg,var(--forest),var(--forest-deep)); border:1px solid var(--forest-deep); box-shadow:var(--shadow-forest); overflow:hidden; }
+  .cta-wrap::before{ content:""; position:absolute; inset:0; pointer-events:none; background:radial-gradient(620px 320px at 86% -12%, rgba(184,147,90,.18), transparent 62%); }
+  .cta-grid{ position:relative; display:grid; grid-template-columns:1fr 1fr; gap:46px; align-items:center; }
+  .cta-copy .eyebrow{ color:var(--gold); }
+  .cta-copy .eyebrow::before{ background:var(--gold); }
+  .cta-copy h2{ color:var(--on-forest-head); }
+  .cta-copy p{ color:var(--on-forest); }
+  .cta-stats{ display:flex; gap:30px; margin-top:26px; }
+  .cta-stat b{ display:block; font-family:var(--serif); font-size:27px; font-weight:400; color:var(--paper); }
+  .cta-stat span{ font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--on-forest-soft); }
+
+  .form{ background:var(--paper); border:1px solid var(--line); border-radius:var(--r-lg); padding:26px; }
+  .role-toggle{ display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:5px; border-radius:var(--r-md); background:var(--cream-warm); border:1px solid var(--line); margin-bottom:20px; }
+  .role-toggle button{ padding:11px 10px; border-radius:8px; border:1px solid transparent; background:transparent; color:var(--muted); font-family:var(--sans); font-size:14px; font-weight:600; cursor:pointer; transition:all .18s; }
+  .role-toggle button[aria-pressed="true"]{ background:var(--forest); color:var(--paper); }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; font-weight:600; color:var(--muted); margin-bottom:7px; }
+  .field input{ width:100%; padding:13px 14px; border-radius:var(--r-md); border:1px solid var(--line); background:#fff; color:var(--ink); font-family:var(--sans); font-size:15px; outline:none; transition:border-color .15s, box-shadow .15s; }
+  .field input::placeholder{ color:#a79f8d; }
+  .field input:focus{ border-color:var(--forest); box-shadow:0 0 0 3px rgba(31,58,46,.12); }
+  .field input[aria-invalid="true"]{ border-color:var(--wine); }
+  .field--row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .field--row span{ text-transform:none; letter-spacing:0; font-family:var(--sans); }
+  .hp{ position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+  .form__note{ font-size:12px; color:var(--muted); margin:14px 0 0; line-height:1.5; }
+  .form__note a{ color:var(--wine); text-decoration:underline; }
+  .form__msg{ display:none; margin-top:16px; padding:13px 15px; border-radius:var(--r-md); font-size:14px; line-height:1.5; }
+  .form__msg--ok{ display:block; background:rgba(31,58,46,.08); border:1px solid rgba(31,58,46,.3); color:var(--forest-deep); }
+  .form__msg--err{ display:block; background:rgba(122,46,46,.08); border:1px solid rgba(122,46,46,.3); color:var(--wine); }
+
+  /* ── FAQ ─────────────────────────────────────────────────── */
+  .faq{ max-width:800px; margin:46px auto 0; }
+  details{ border-bottom:1px solid var(--line); }
+  details:first-child{ border-top:1px solid var(--line); }
+  summary{ list-style:none; cursor:pointer; padding:22px 4px; display:flex; align-items:center; justify-content:space-between; gap:16px; font-family:var(--serif); font-size:19px; color:var(--forest-deep); }
+  summary::-webkit-details-marker{ display:none; }
+  summary .pm{ flex-shrink:0; width:26px; height:26px; border-radius:50%; border:1px solid var(--line); display:grid; place-items:center; font-size:18px; color:var(--gold-deep); transition:transform .2s, border-color .2s; }
+  details[open] summary .pm{ transform:rotate(45deg); border-color:var(--gold); }
+  details p{ margin:0 4px 22px; color:var(--muted); font-size:15px; line-height:1.7; }
+
+  /* ── Footer ──────────────────────────────────────────────── */
+  footer{ border-top:1px solid var(--line); padding:54px 0 40px; margin-top:clamp(40px,6vw,80px); }
+  .foot__top{ display:flex; flex-wrap:wrap; gap:28px; justify-content:space-between; align-items:flex-start; }
+  .foot__col h4{ font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--gold-deep); margin:0 0 14px; font-weight:600; }
+  .foot__cols{ display:flex; flex-wrap:wrap; gap:48px; }
+  .foot__col a{ display:block; font-size:14px; color:var(--muted); margin-bottom:9px; transition:color .15s; }
+  .foot__col a:hover{ color:var(--forest); }
+  .disclaimer{ margin-top:40px; padding:20px 22px; border:1px solid var(--line); border-radius:var(--r); background:var(--cream-warm); font-size:12.5px; color:var(--muted); line-height:1.7; max-width:820px; }
+  .foot__legal{ margin-top:22px; display:flex; flex-wrap:wrap; gap:14px; align-items:center; justify-content:space-between; font-family:var(--mono); font-size:11.5px; letter-spacing:.04em; color:var(--muted); }
+
+  .reveal{ opacity:0; transform:translateY(16px); transition:opacity .6s var(--ease), transform .6s var(--ease); }
+  .reveal.in{ opacity:1; transform:none; }
+
+  /* ── Responsive ──────────────────────────────────────────── */
+  @media (max-width:980px){
+    .steps{ grid-template-columns:repeat(2,1fr); }
+    .season,.split,.cta-grid{ grid-template-columns:1fr; }
+    .season{ gap:24px; }
+    .cta-grid{ gap:30px; }
+  }
+  @media (max-width:760px){
+    .nav .link, .nav__sep{ display:none; }
+    .burger{ display:grid; place-items:center; }
+    .nav.open{ position:absolute; top:70px; left:0; right:0; flex-direction:column; align-items:stretch; gap:4px; padding:14px 16px 18px;
+      background:var(--paper); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:0 16px 40px rgba(21,41,31,.14); }
+    .nav.open .link{ display:block; padding:13px 12px; font-size:16px; }
+    .nav.open .nav__cta{ flex-direction:column; align-items:stretch; margin-top:8px; }
+    .nav.open .nav__cta .btn{ width:100%; }
+    .hero__cta .btn{ flex:1 1 auto; }
+    .steps{ grid-template-columns:1fr; }
+    .prod-grid{ grid-template-columns:repeat(2,1fr); }
+  }
+  </style>
+</head>
+<body>
+
+  <!-- ── Topbar ──────────────────────────────────────────────── -->
+  <header class="topbar" id="topbar">
+    <div class="wrap">
+      <div class="topbar__inner">
+        <a class="brand" href="#top" aria-label="LokaleBauernConnect Startseite">
+          <span class="brand__mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C7 6 6 11 12 22 18 11 17 6 12 2Z"/><path d="M12 8v9"/></svg>
+          </span>
+          <span><b>LokaleBauern</b><i>Connect</i></span>
+        </a>
+        <nav class="nav" id="nav">
+          <a class="link" href="#so-gehts">Wie es funktioniert</a>
+          <a class="link" href="#produkte">Produkte</a>
+          <a class="link" href="#hoefe">Für Höfe</a>
+          <a class="link" href="#faq">FAQ</a>
+          <span class="nav__sep" aria-hidden="true"></span>
+          <span class="nav__cta">
+            <a class="btn" href="#hoefe" data-role-jump="erzeuger">Hof anmelden</a>
+            <a class="btn btn--primary" href="#zugang">Frühen Zugang sichern</a>
+          </span>
+        </nav>
+        <button class="burger" id="burger" aria-label="Menü" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+
+    <!-- ── Hero ──────────────────────────────────────────────── -->
+    <section class="hero">
+      <div class="wrap">
+        <span class="hero__badge"><span class="dot"></span> Jetzt im Aufbau · Sichere dir den frühen Zugang in deiner Region</span>
+        <h1>Das Beste der Region. <em>Direkt vom Hof.</em></h1>
+        <p class="lead">LokaleBauernConnect verbindet dich mit Höfen, Hofläden und Erzeugern in deiner Nähe. Sieh, was gerade verfügbar ist, reserviere online und hol es frisch ab — regional, saisonal und fair, ohne Umweg über das Supermarktregal.</p>
+        <div class="hero__cta">
+          <a class="btn btn--primary btn--lg" href="#zugang">Frühen Zugang sichern</a>
+          <a class="btn btn--lg" href="#so-gehts">So funktioniert's</a>
+        </div>
+        <div class="hero__meta">
+          <span><b>Hofladen-Finder</b> · Höfe & Öffnungszeiten in deiner Nähe</span>
+          <span><b>Live-Verfügbarkeit</b> · saisonal & ehrlich gepflegt</span>
+          <span><b>Reservieren & Abholen</b> · ohne Anstehen</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Trust strip ───────────────────────────────────────── -->
+    <div class="wrap">
+      <div class="trust__row">
+        <span class="trust__item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 7v6c0 5 3.5 8 9 9 5.5-1 9-4 9-9V7Z"/></svg> 100% regional</span>
+        <span class="trust__item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Saisonal & frisch</span>
+        <span class="trust__item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Direkt vom Erzeuger</span>
+        <span class="trust__item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M5 5h11a3 3 0 0 1 0 6H8a3 3 0 0 0 0 6h11"/></svg> Faire Preise für Höfe</span>
+      </div>
+    </div>
+
+    <!-- ── Problem / Why ─────────────────────────────────────── -->
+    <section class="block">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Warum LokaleBauernConnect</span>
+          <h2>Regional kaufen sollte <em>einfach</em> sein.</h2>
+          <p class="lead">Verbraucher wollen regional einkaufen — finden Höfe und ihre Verfügbarkeiten aber kaum. Erzeuger machen großartige Produkte, haben digital aber wenig Reichweite. Wir schließen genau diese Lücke: eine Karte, echte Verfügbarkeit, ein Klick zur Reservierung.</p>
+        </div>
+      </div>
+    </section>
+
+    <hr class="divider"/>
+
+    <!-- ── How it works ──────────────────────────────────────── -->
+    <section class="block" id="so-gehts">
+      <div class="wrap">
+        <div class="section-head section-head--center">
+          <span class="eyebrow">Wie es funktioniert</span>
+          <h2>In vier Schritten zum Korb voll Region</h2>
+        </div>
+        <div class="steps" id="steps"></div>
+      </div>
+    </section>
+
+    <hr class="divider"/>
+
+    <!-- ── Product world ─────────────────────────────────────── -->
+    <section class="block" id="produkte">
+      <div class="wrap">
+        <div class="section-head section-head--center">
+          <span class="eyebrow">Die Produktwelt</span>
+          <h2>Vom Feld, vom Stall, von der Wiese</h2>
+          <p class="lead" style="margin-left:auto;margin-right:auto">Alles, was die Region hergibt — ehrlich erzeugt und frisch geerntet.</p>
+        </div>
+        <div class="prod-grid" id="products"></div>
+      </div>
+    </section>
+
+    <!-- ── Seasonal ──────────────────────────────────────────── -->
+    <section class="block">
+      <div class="wrap">
+        <div class="season reveal">
+          <div>
+            <span class="eyebrow">Saison-Radar</span>
+            <h2 id="season-title">Was gerade Saison hat</h2>
+            <p class="lead" id="season-desc">Saisonal schmeckt besser, ist günstiger und hat die kürzesten Wege. Unser Saison-Radar zeigt dir, was diesen Monat frisch vom Hof kommt — und welche Höfe es führen.</p>
+          </div>
+          <div>
+            <div class="season__chips" id="season-chips"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="divider"/>
+
+    <!-- ── Two audiences ─────────────────────────────────────── -->
+    <section class="block" id="hoefe">
+      <div class="wrap">
+        <div class="section-head section-head--center">
+          <span class="eyebrow">Für beide Seiten gebaut</span>
+          <h2>Eine Plattform, zwei Versprechen</h2>
+        </div>
+        <div class="split">
+          <!-- Consumers -->
+          <div class="panel">
+            <div class="panel__tag">Für Genießer</div>
+            <h3>Finde echtes Essen aus deiner Nähe</h3>
+            <p>Schluss mit der Frage „Welcher Hof hat heute Erdbeeren?". Sieh es auf einen Blick — und sichere es dir.</p>
+            <ul class="ul">
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Höfe & Hofläden in der Nähe auf der Karte</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Live-Verfügbarkeit & Öffnungszeiten</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Online reservieren, im Abholfenster mitnehmen</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Saison-Radar & Benachrichtigung bei Lieblingsprodukten</li>
+            </ul>
+            <a class="btn btn--primary" href="#zugang" data-role-jump="kaeufer">Frühen Zugang sichern</a>
+          </div>
+          <!-- Producers -->
+          <div class="panel panel--forest">
+            <div class="panel__tag">Für Höfe & Erzeuger</div>
+            <h3>Mehr Reichweite. Ohne Mehraufwand.</h3>
+            <p>Zeig deine Produkte dort, wo Menschen aus deiner Region suchen — und pflege Verfügbarkeit in Sekunden selbst.</p>
+            <ul class="ul">
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Dein Hofprofil mit Standort, Story & Produkten</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Verfügbarkeit & Bestand selbst pflegen — vom Handy</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Reservierungen & Abholfenster ohne Telefon-Pingpong</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Schlankes Abo — fair, planbar, jederzeit kündbar</li>
+            </ul>
+            <a class="btn btn--gold" href="#zugang" data-role-jump="erzeuger">Als Hof vormerken</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="divider"/>
+
+    <!-- ── Waitlist / Early access ────────────────────────────── -->
+    <section class="block" id="zugang">
+      <div class="wrap">
+        <div class="cta-wrap">
+          <div class="cta-grid">
+            <div class="cta-copy">
+              <span class="eyebrow">Früher Zugang</span>
+              <h2>Sei dabei, wenn deine Region startet.</h2>
+              <p class="lead">Wir bauen Region für Region auf. Trag dich ein und wir melden uns, sobald LokaleBauernConnect bei dir live geht — als Erste:r, ohne Spam.</p>
+              <div class="cta-stats">
+                <div class="cta-stat"><b>Welle 1</b><span>Aufbau läuft</span></div>
+                <div class="cta-stat"><b>0 €</b><span>Früher Zugang</span></div>
+                <div class="cta-stat"><b>EU</b><span>Daten in der EU</span></div>
+              </div>
+            </div>
+
+            <form class="form" id="waitlist" novalidate>
+              <div class="role-toggle" role="group" aria-label="Ich bin…">
+                <button type="button" data-role="kaeufer" aria-pressed="true">Ich möchte einkaufen</button>
+                <button type="button" data-role="erzeuger" aria-pressed="false">Ich bin Erzeuger</button>
+              </div>
+
+              <div class="field" id="field-name" hidden>
+                <label for="wl-name">Hof / Betrieb</label>
+                <input id="wl-name" name="name" type="text" autocomplete="organization" placeholder="z. B. Hof Sonnenwiese"/>
+              </div>
+
+              <div class="field">
+                <label for="wl-email">E-Mail-Adresse</label>
+                <input id="wl-email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="name@beispiel.de" required/>
+              </div>
+
+              <div class="field field--row">
+                <div>
+                  <label for="wl-plz">Postleitzahl</label>
+                  <input id="wl-plz" name="plz" type="text" inputmode="numeric" maxlength="5" autocomplete="postal-code" placeholder="z. B. 49074" required/>
+                </div>
+                <div>
+                  <label for="wl-ort">Ort <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+                  <input id="wl-ort" name="ort" type="text" autocomplete="address-level2" placeholder="z. B. Osnabrück"/>
+                </div>
+              </div>
+
+              <!-- Honeypot (spam trap) -->
+              <div class="hp" aria-hidden="true"><label>Bitte leer lassen<input type="text" name="company_url" tabindex="-1" autocomplete="off"/></label></div>
+
+              <button class="btn btn--primary btn--block btn--lg" type="submit" id="wl-submit">Auf die Warteliste</button>
+              <p class="form__note">Mit dem Eintragen stimmst du zu, dass wir dich per E-Mail über den Start in deiner Region informieren. Abmeldung jederzeit. Siehe <a href="#">Datenschutz</a>.</p>
+              <div class="form__msg" id="wl-msg" role="status" aria-live="polite"></div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="divider"/>
+
+    <!-- ── FAQ ───────────────────────────────────────────────── -->
+    <section class="block" id="faq">
+      <div class="wrap">
+        <div class="section-head section-head--center">
+          <span class="eyebrow">Häufige Fragen</span>
+          <h2>Gut zu wissen</h2>
+        </div>
+        <div class="faq" id="faq-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ── Footer ────────────────────────────────────────────── -->
+  <footer>
+    <div class="wrap">
+      <div class="foot__top">
+        <div style="max-width:300px">
+          <a class="brand" href="#top" style="margin-bottom:14px">
+            <span class="brand__mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C7 6 6 11 12 22 18 11 17 6 12 2Z"/><path d="M12 8v9"/></svg>
+            </span>
+            <span><b>LokaleBauern</b><i>Connect</i></span>
+          </a>
+          <p style="color:var(--muted);font-size:14px;margin:0">Regional direkt vom Hof — finden, reservieren, abholen.</p>
+        </div>
+        <div class="foot__cols">
+          <div class="foot__col">
+            <h4>Plattform</h4>
+            <a href="#so-gehts">Wie es funktioniert</a>
+            <a href="#produkte">Produkte</a>
+            <a href="#zugang">Früher Zugang</a>
+          </div>
+          <div class="foot__col">
+            <h4>Für Höfe</h4>
+            <a href="#hoefe">Vorteile</a>
+            <a href="#zugang" data-role-jump="erzeuger">Hof anmelden</a>
+            <a href="#faq">FAQ</a>
+          </div>
+          <div class="foot__col">
+            <h4>Rechtliches</h4>
+            <a href="#">Impressum</a>
+            <a href="#">Datenschutz</a>
+            <a href="#">AGB</a>
+          </div>
+        </div>
+      </div>
+
+      <p class="disclaimer">
+        LokaleBauernConnect ist eine Vermittlungsplattform. Wir bringen Verbraucher:innen und regionale Erzeuger zusammen, verkaufen jedoch keine Lebensmittel selbst und üben keine Eigenvermarktung aus. Für Produktangaben, Kennzeichnung, Preise, Verfügbarkeit und die Einhaltung lebensmittelrechtlicher Vorgaben sind ausschließlich die jeweiligen Erzeuger verantwortlich. Ein Vermittlungs- oder Verfügbarkeitserfolg wird nicht garantiert. Alle Angaben ohne Gewähr.
+      </p>
+
+      <div class="foot__legal">
+        <span>© <span id="year"></span> LokaleBauernConnect · Daten in der EU gehostet</span>
+        <span>Teil des ConnectCore-Netzwerks</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+  /* ════════════════════════════════════════════════════════════════
+     LokaleBauernConnect — Landing logic (vanilla, kein Build nötig)
+     ════════════════════════════════════════════════════════════════ */
+  (function(){
+    'use strict';
+
+    /* ── GO-LIVE-Konfiguration ──────────────────────────────────────
+       Sobald ein Supabase-Projekt (EU) + Tabelle `waitlist` existiert,
+       hier eintragen — danach läuft das Capture serverseitig.
+       Tabelle: waitlist(id uuid default gen_random_uuid() pk,
+         role text, name text, email text, plz text, ort text,
+         created_at timestamptz default now(), source text)
+       Bis dahin: lokaler Fallback (kein Lead geht verloren, kein toter Button). */
+    var CONFIG = {
+      supabaseUrl:     '',   // z. B. https://xxxxx.supabase.co
+      supabaseAnonKey: ''    // anon public key
+    };
+
+    /* ── Daten (datengetrieben statt wiederholtem Markup) ─────────── */
+    var STEPS = [
+      { t:'Hof finden',         d:'Gib deine PLZ ein und entdecke Höfe, Hofläden & Erzeuger in deiner Nähe auf der Karte.' },
+      { t:'Verfügbarkeit sehen',d:'Was ist heute da? Live-Bestand und Öffnungszeiten — ehrlich vom Erzeuger gepflegt.' },
+      { t:'Reservieren',        d:'Sichere dir deine Produkte mit einem Klick und wähle dein Abholfenster.' },
+      { t:'Frisch abholen',     d:'Komm vorbei, hol deinen Korb ab — ohne Anstehen, ohne Umweg.' }
+    ];
+
+    /* Editorial: keine Emojis — Magazin-Katalog mit Indexnummern. */
+    var PRODUCTS = ['Obst','Gemüse','Eier','Käse','Honig','Fleisch & Wurst','Kartoffeln','Säfte','Marmelade','Blumen','Hofladen-Angebote','Getreide & Mehl'];
+
+    /* Saison-Radar — nach Monat (0=Jan). Editorial, ehrlich, regional (DE). */
+    var SEASON = {
+      0:['Feldsalat','Lageräpfel','Pastinaken','Grünkohl'],
+      1:['Feldsalat','Lauch','Rote Bete','Lagerkartoffeln'],
+      2:['Bärlauch','Rhabarber','Spinat','Radieschen'],
+      3:['Spargel','Rhabarber','Radieschen','Frühlingszwiebeln'],
+      4:['Spargel','Erdbeeren','Mairübchen','Kohlrabi'],
+      5:['Erdbeeren','Spargel','Kirschen','Zucchini','Frische Eier'],
+      6:['Erdbeeren','Johannisbeeren','Tomaten','Gurken','Honig'],
+      7:['Tomaten','Zwetschgen','Mais','Bohnen','Pfirsiche'],
+      8:['Äpfel','Birnen','Kürbis','Trauben','Pflaumen'],
+      9:['Kürbis','Äpfel','Maronen','Walnüsse','Rote Bete'],
+      10:['Kürbis','Feldsalat','Grünkohl','Lagerbirnen'],
+      11:['Grünkohl','Lageräpfel','Rosenkohl','Honig']
+    };
+    var MONTHS = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+    var FAQ = [
+      ['Was kostet LokaleBauernConnect für mich als Käufer:in?','Das Finden, Ansehen und Reservieren ist für Verbraucher:innen kostenlos. Bezahlt wird das Produkt direkt beim Hof — fair und ohne versteckte Aufschläge.'],
+      ['Wie kommt mein Hof auf die Plattform?','Trag dich oben als Erzeuger in die Warteliste ein. Zum Start deiner Region richten wir dein Hofprofil gemeinsam ein. Verfügbarkeit pflegst du danach in Sekunden selbst — direkt vom Handy.'],
+      ['Verkauft ihr die Lebensmittel selbst?','Nein. Wir sind eine reine Vermittlungsplattform und bringen dich mit regionalen Höfen zusammen. Verkauf, Produktangaben und Kennzeichnung liegen bei den Erzeugern.'],
+      ['In welchen Regionen seid ihr verfügbar?','Wir starten Region für Region. Mit deiner PLZ landest du auf der Warteliste und erfährst als Erste:r, sobald es bei dir losgeht.'],
+      ['Wie sicher sind meine Daten?','Deine Daten werden DSGVO-konform in der EU gehostet. Wir nutzen deine E-Mail ausschließlich, um dich über den Start in deiner Region zu informieren — Abmeldung jederzeit.']
+    ];
+
+    /* ── Render helpers ───────────────────────────────────────────── */
+    function el(tag, cls, html){ var e=document.createElement(tag); if(cls)e.className=cls; if(html!=null)e.innerHTML=html; return e; }
+    var $ = function(s,r){ return (r||document).querySelector(s); };
+
+    // Steps
+    var stepsEl = $('#steps');
+    STEPS.forEach(function(s){
+      stepsEl.appendChild(el('div','step reveal','<div class="step__n" aria-hidden="true"></div><h3>'+s.t+'</h3><p>'+s.d+'</p>'));
+    });
+
+    // Products (Magazin-Index)
+    var prodEl = $('#products');
+    PRODUCTS.forEach(function(name,i){
+      var n = ('0'+(i+1)).slice(-2);
+      prodEl.appendChild(el('div','prod reveal','<span class="prod__n" aria-hidden="true">'+n+'</span><span class="prod__t">'+name+'</span>'));
+    });
+
+    // Season (current month — fixed render)
+    var now = new Date();
+    var m = now.getMonth();
+    $('#season-title').textContent = 'Was im '+MONTHS[m]+' Saison hat';
+    var chips = $('#season-chips');
+    (SEASON[m]||[]).forEach(function(name){
+      chips.appendChild(el('span','chip','<span class="pulse" aria-hidden="true"></span>'+name));
+    });
+
+    // FAQ
+    var faqEl = $('#faq-list');
+    FAQ.forEach(function(f){
+      var d = el('details', 'reveal');
+      d.innerHTML = '<summary>'+f[0]+'<span class="pm" aria-hidden="true">+</span></summary><p>'+f[1]+'</p>';
+      faqEl.appendChild(d);
+    });
+
+    // Year
+    $('#year').textContent = String(now.getFullYear());
+
+    /* ── Topbar scroll state + mobile menu ───────────────────────── */
+    var topbar = $('#topbar');
+    var onScroll = function(){ topbar.classList.toggle('scrolled', window.scrollY > 8); };
+    window.addEventListener('scroll', onScroll, { passive:true }); onScroll();
+
+    var nav = $('#nav'), burger = $('#burger');
+    burger.addEventListener('click', function(){
+      var open = nav.classList.toggle('open');
+      burger.setAttribute('aria-expanded', String(open));
+    });
+    nav.addEventListener('click', function(e){ if(e.target.closest('a')) { nav.classList.remove('open'); burger.setAttribute('aria-expanded','false'); } });
+
+    /* ── Reveal on scroll ─────────────────────────────────────────── */
+    if('IntersectionObserver' in window){
+      var io = new IntersectionObserver(function(entries){
+        entries.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+      }, { threshold:.12 });
+      document.querySelectorAll('.reveal').forEach(function(n){ io.observe(n); });
+    } else {
+      document.querySelectorAll('.reveal').forEach(function(n){ n.classList.add('in'); });
+    }
+
+    /* ── Waitlist: role toggle ───────────────────────────────────── */
+    var role = 'kaeufer';
+    var roleBtns = document.querySelectorAll('.role-toggle button');
+    var nameField = $('#field-name');
+    var submitBtn = $('#wl-submit');
+    function setRole(r){
+      role = r;
+      roleBtns.forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.role===r)); });
+      var isErz = r==='erzeuger';
+      nameField.hidden = !isErz;
+      submitBtn.textContent = isErz ? 'Als Hof vormerken' : 'Auf die Warteliste';
+    }
+    roleBtns.forEach(function(b){ b.addEventListener('click', function(){ setRole(b.dataset.role); }); });
+
+    // Deep links from CTAs (data-role-jump) preselect role + focus
+    document.querySelectorAll('[data-role-jump]').forEach(function(a){
+      a.addEventListener('click', function(){
+        setRole(a.getAttribute('data-role-jump')==='erzeuger' ? 'erzeuger' : 'kaeufer');
+        setTimeout(function(){ $('#wl-email').focus({preventScroll:true}); }, 420);
+      });
+    });
+
+    /* ── Waitlist: submit (Supabase-ready + lokaler Fallback) ─────── */
+    var form = $('#waitlist'), msg = $('#wl-msg');
+    var emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    var plzRe = /^\d{5}$/;
+
+    function showMsg(kind, text){ msg.className = 'form__msg form__msg--'+kind; msg.textContent = text; }
+    function invalid(input, bad){ input.setAttribute('aria-invalid', bad?'true':'false'); }
+
+    async function persist(payload){
+      if(CONFIG.supabaseUrl && CONFIG.supabaseAnonKey){
+        var res = await fetch(CONFIG.supabaseUrl.replace(/\/$/,'') + '/rest/v1/waitlist', {
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json',
+            'apikey':CONFIG.supabaseAnonKey,
+            'Authorization':'Bearer '+CONFIG.supabaseAnonKey,
+            'Prefer':'return=minimal'
+          },
+          body: JSON.stringify(payload)
+        });
+        if(!res.ok) throw new Error('request_failed_'+res.status);
+        return 'server';
+      }
+      // Fallback: lokal sichern, damit kein Lead verloren geht.
+      try{
+        var key='lbc_waitlist';
+        var list=JSON.parse(localStorage.getItem(key)||'[]');
+        list.push(payload); localStorage.setItem(key, JSON.stringify(list));
+      }catch(e){}
+      return 'local';
+    }
+
+    form.addEventListener('submit', async function(e){
+      e.preventDefault();
+      var email = $('#wl-email').value.trim();
+      var plz   = $('#wl-plz').value.trim();
+      var ort   = $('#wl-ort').value.trim();
+      var name  = $('#wl-name').value.trim();
+      var trap  = form.querySelector('[name="company_url"]').value;
+
+      if(trap){ return; } // bot
+
+      var okEmail = emailRe.test(email), okPlz = plzRe.test(plz);
+      invalid($('#wl-email'), !okEmail); invalid($('#wl-plz'), !okPlz);
+      if(!okEmail){ showMsg('err','Bitte gib eine gültige E-Mail-Adresse ein.'); $('#wl-email').focus(); return; }
+      if(!okPlz){ showMsg('err','Bitte gib eine gültige 5-stellige Postleitzahl ein.'); $('#wl-plz').focus(); return; }
+      if(role==='erzeuger' && !name){ showMsg('err','Bitte gib den Namen deines Hofs an.'); $('#wl-name').focus(); return; }
+
+      submitBtn.disabled = true; var label = submitBtn.textContent; submitBtn.textContent = 'Wird gesendet …';
+      msg.className = 'form__msg';
+
+      var payload = { role:role, email:email, plz:plz, ort:ort||null, name:(role==='erzeuger'?name:null), source:'landing', created_at:new Date().toISOString() };
+
+      try{
+        await persist(payload);
+        form.reset(); setRole(role);
+        showMsg('ok', role==='erzeuger'
+          ? 'Geschafft! Wir melden uns, sobald wir deinen Hof in deiner Region aufnehmen.'
+          : 'Du bist auf der Warteliste! Wir benachrichtigen dich, sobald es in '+(ort||('PLZ '+plz))+' losgeht.');
+      }catch(err){
+        showMsg('err','Da ist etwas schiefgelaufen. Bitte versuch es gleich noch einmal.');
+      }finally{
+        submitBtn.disabled = false; submitBtn.textContent = label;
+      }
+    });
+
+  })();
+  </script>
+</body>
+</html>

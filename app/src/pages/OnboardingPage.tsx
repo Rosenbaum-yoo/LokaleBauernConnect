@@ -17,6 +17,10 @@ export function OnboardingPage() {
       street: d.street, plz: d.plz, city: d.city,
       categories: d.categories as ProductCategory[], story: d.story, openingHours: d.openingHours,
       pickupWindows: (d.pickupWindows || '').split(',').map((s) => s.trim()).filter(Boolean),
+      producerKind: d.producerKind,
+      declSelfProduced: d.declSelfProduced === 'true',
+      declResponsibility: d.declResponsibility === 'true',
+      declFoodLaw: d.declFoodLaw === 'true',
     })
     setSubmitting(false)
     if (ok) setDone(true); else setErr(true)

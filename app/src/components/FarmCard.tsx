@@ -18,6 +18,8 @@ export function FarmCard({ farm, onOpen }: { farm: Farm; onOpen: (f: Farm) => vo
       <div className="farm-card__top">
         <div>
           <div className="farm-card__type">{farm.type}</div>
+          {farm.producerKind === 'privat' && <span className="lbc-badge lbc-badge--kind">Privat-Erzeuger</span>}
+          {farm.producerKind === 'verein' && <span className="lbc-badge lbc-badge--kind">Verein</span>}
           <h3 className="farm-card__name">{farm.name}</h3>
           <div className="farm-card__loc">{farm.plz} {farm.city} · {farm.street}</div>
           {farm.ratingCount ? (

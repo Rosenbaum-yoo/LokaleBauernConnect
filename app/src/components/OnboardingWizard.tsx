@@ -86,6 +86,8 @@ function Field({ def, value, error, onChange }: { def: FieldDef; value: string |
     <div className="field">
       {def.type === 'multiselect'
         ? <span className="lbc-label" id={`${id}-label`}>{def.label}</span>
+        : def.type === 'checkbox'
+        ? null
         : <label className="lbc-label" htmlFor={id}>{def.label}</label>}
       {def.type === 'textarea' ? (
         <textarea id={id} className="lbc-input" rows={4} value={value as string} placeholder={def.placeholder}
@@ -105,6 +107,12 @@ function Field({ def, value, error, onChange }: { def: FieldDef; value: string |
             )
           })}
         </div>
+      ) : def.type === 'checkbox' ? (
+        <label className="check" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
+          <input id={id} type="checkbox" checked={value === 'true'} aria-invalid={invalid} aria-describedby={describedBy}
+            onChange={(e) => onChange(e.target.checked ? 'true' : '')} style={{ marginTop: 3 }} />
+          <span>{def.label}</span>
+        </label>
       ) : (
         <input id={id} className="lbc-input" type={def.type} value={value as string} placeholder={def.placeholder}
           inputMode={def.name === 'plz' ? 'numeric' : undefined}

@@ -39,6 +39,7 @@ export interface Farm {
   rating?: number
   ratingCount?: number
   reputationGrade?: 'neu' | 'bronze' | 'silber' | 'gold'
+  producerKind?: 'gewerblich' | 'privat' | 'verein'
   // zur Laufzeit berechnet (Distanz zur gesuchten PLZ):
   distanceKm?: number | null
 }
@@ -91,4 +92,8 @@ export interface FarmApplicationInput {
   story: string
   openingHours: string
   pickupWindows: string[]
+  producerKind?: string
+  declSelfProduced?: boolean
+  declResponsibility?: boolean
+  declFoodLaw?: boolean
 }

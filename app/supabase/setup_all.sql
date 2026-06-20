@@ -611,3 +611,11 @@ alter table sb_payments add column if not exists support_cents integer not null 
 -- Erntedatum je Produkt (Frische-Signal im Finder). Additiv + idempotent.
 alter table products add column if not exists harvested_at date;
 
+-- ===== 0007_producer =====
+-- Erzeuger-Typ (gewerblich/privat/verein) + Selbsterklaerungen. Additiv + idempotent.
+alter table farm_applications add column if not exists producer_kind       text;
+alter table farm_applications add column if not exists decl_self_produced  boolean not null default false;
+alter table farm_applications add column if not exists decl_responsibility boolean not null default false;
+alter table farm_applications add column if not exists decl_food_law       boolean not null default false;
+alter table farms add column if not exists producer_kind text;
+

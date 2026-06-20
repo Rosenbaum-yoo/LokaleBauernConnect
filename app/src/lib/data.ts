@@ -68,6 +68,15 @@ export async function listFarms(filter: FarmFilter = {}): Promise<Farm[]> {
   return applyFilter(SEED_FARMS, filter)
 }
 
+/** Normalisiert den Erzeuger-Typ (lange Labels oder Kurzform) auf gewerblich/privat/verein. */
+function normalizeKind(v: unknown): Farm['producerKind'] {
+  const s = v ? String(v).toLowerCase() : ''
+  if (!s) return undefined
+  if (s.includes('privat') || s.includes('hobby')) return 'privat'
+  if (s.includes('verein')) return 'verein'
+  return 'gewerblich'
+}
+
 /** Mappt eine Supabase-Zeile (snake_case) auf den Farm-Typ (camelCase). */
 function mapFarm(row: Record<string, unknown>): Farm {
   const products = Array.isArray(row.products) ? (row.products as Record<string, unknown>[]) : []
@@ -88,6 +97,7 @@ function mapFarm(row: Record<string, unknown>): Farm {
     rating: row.rating_avg != null ? Number(row.rating_avg) : undefined,
     ratingCount: row.rating_count != null ? Number(row.rating_count) : undefined,
     reputationGrade: (row.reputation_grade as Farm['reputationGrade']) ?? undefined,
+    producerKind: normalizeKind(row.producer_kind),
     products: products.map((p): Product => ({
       id: String(p.id),
       name: String(p.name),
@@ -173,6 +183,10 @@ export async function createFarmApplication(input: FarmApplicationInput): Promis
       street: input.street, plz: input.plz, city: input.city,
       categories: input.categories, story: input.story,
       opening_hours: input.openingHours, pickup_windows: input.pickupWindows,
+      producer_kind: input.producerKind ?? null,
+      decl_self_produced: input.declSelfProduced ?? false,
+      decl_responsibility: input.declResponsibility ?? false,
+      decl_food_law: input.declFoodLaw ?? false,
     })
     return !error
   }

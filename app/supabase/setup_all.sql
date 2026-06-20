@@ -602,3 +602,8 @@ insert into reviews (farm_id, org_id, rating, author_name, comment, verified) va
  ('obsthof-deichkrone','00000000-0000-0000-0000-000000000007',4,'Nadine T.','Alte Apfelsorten — selten und gut.',true),
  ('muehlenhof-bramsche','00000000-0000-0000-0000-000000000008',4,'Georg V.','Frisches Mehl, klarer Unterschied beim Backen.',true);
 
+-- ===== 0005_support =====
+-- Freiwilliger Unterstuetzungsbeitrag (Plattform-Einnahme) am SB-Stand. Additiv + idempotent.
+-- Getrennt vom Warenwert (amount_cents -> Hof), damit Plattform-Support separat auditierbar ist.
+alter table sb_payments add column if not exists support_cents integer not null default 0;
+

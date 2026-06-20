@@ -1,7 +1,7 @@
 # LokaleBauernConnect — Architektur
 
-> **Status:** Lebendes Dokument · Stand 2026-06-19 · Welle 1, Klasse C (ConnectCore-Imperium)
-> **Verwandte Dokumente:** `docs/adr/0001-stack-react-supabase-cloudflare.md` · `docs/adr/0002-app-architektur-standalone-first.md` · `PHASEN.md` · `MASTER_INDEX.md` · `docs/DATABASE_MODEL.md` (geplant) · `docs/security/TENANT_ISOLATION_MODEL.md` (geplant)
+> **Status:** Lebendes Dokument · Stand 2026-06-20 · Welle 1, Klasse C (ConnectCore-Imperium)
+> **Verwandte Dokumente:** `docs/adr/0001-stack-react-supabase-cloudflare.md` · `docs/adr/0002-app-architektur-standalone-first.md` · `PHASEN.md` · `MASTER_INDEX.md` · `docs/DATABASE_MODEL.md` · `docs/ENTERPRISE_ARCHITECTURE.md` · `docs/ROLE_AND_PERMISSION_MODEL.md` · `docs/CORE_BUSINESS_STATE_MACHINES.md` · `docs/security/TENANT_ISOLATION_MODEL.md` (geplant)
 > **Rolle der Plattform:** **Vermittler** — kein Eigenverkauf, keine Beratung. Disclaimer durchgängig sichtbar. Verkauf, Produktangaben und Verfügbarkeit liegen bei den Erzeugern.
 
 Dieses Dokument beschreibt die System-Architektur von LokaleBauernConnect: die fixen Stack-Säulen (React/Vite/TypeScript · Supabase · Cloudflare · Stripe), die **Kern-vs-Spezialschicht**-Trennung des Imperiums, die Datenflüsse der drei Welten (Käufer · Erzeuger · Staff), den USP „sichere bargeldlose Bezahlung am unbemannten SB-Hofladen" sowie die reale Verzeichnisstruktur unter `app/`.
@@ -189,11 +189,13 @@ flowchart TB
 
 Die TypeScript-Typen sind die **Quelle der Wahrheit** für das Spezial-Datenmodell und das spätere Supabase-Schema (ADR 0002):
 
-- `Farm` — `id, name, type, street, plz, city, lat, lng, story, openingHours, pickupWindows[], categories[], products[]`, zur Laufzeit `distanceKm`.
+- `Farm` — `id, orgId?, name, type, street, plz, city, lat, lng, story, openingHours, pickupWindows[], categories[], products[]`; Reputation `rating?, ratingCount?, reputationGrade?` (`'neu' | 'bronze' | 'silber' | 'gold'`); zur Laufzeit `distanceKm`.
 - `Product` — `id, name, category, unit, price, availability, seasonal?`.
-- `Availability` — `'available' | 'low' | 'soon' | 'out'`.
-- `ReservationInput` / `Reservation` — `farmId, productId, quantity, pickupWindow, name, contact` (+ `id, createdAt`).
-- `FarmFilter` — `plz?, category?, sort?` (`'distance' | 'name'`).
+- `Availability` — `'available' | 'low' | 'soon' | 'out'` (DB-Enum `availability_state`).
+- `Review` — `id, farmId, rating, authorName?, comment?, verified?, createdAt`.
+- `ReservationInput` / `Reservation` — `farmId, orgId?, productId, quantity, pickupWindow, name, contact` (+ `id, createdAt`).
+- `FarmApplicationInput` — `name, type, email, phone?, street, plz, city, categories[], story, openingHours, pickupWindows[]` (Erzeuger-Onboarding → `farm_applications`).
+- `FarmFilter` — `plz?, category?, sort?` (`'distance' | 'name'`), `limit?`.
 
 Beim Mapping auf Postgres gilt: `camelCase` (TS) ↔ `snake_case` (DB) — z. B. `farmId → farm_id`, `pickupWindow → pickup_window` (siehe `createReservation` in `data.ts`).
 
@@ -227,77 +229,75 @@ flowchart LR
 
 ### 4.2 Edge Functions (Deno) — Verantwortlichkeiten
 
-| Funktion (geplant) | Aufgabe | Pflichten |
-|---|---|---|
-| `create-reservation` | Reservierung mit Identitätsbezug anlegen | Zod, Rate-Limit, Turnstile, Audit, Benachrichtigung |
-| `farm-availability-upsert` | Erzeuger pflegt Bestand/Verfügbarkeit | Rolle=Erzeuger, org-Scope, Audit |
-| `stripe-webhook` | **EIN** signaturgeprüfter, idempotenter Stripe-Handler | Signaturprüfung, Idempotenz-Key, Entitlements serverseitig |
-| `sb-payment-intent` | SB-Bezahlung am Stand initiieren | QR-Token validieren, Stripe Checkout, Audit |
-| `staff-verify-farm` | Hof-Verifizierung / Eskalation (Staff) | Rolle=Staff, Confirm+Reason, Audit |
+| Funktion | Status | Aufgabe | Pflichten |
+|---|---|---|---|
+| `stripe-webhook` | ✅ vorhanden | **EIN** signaturgeprüfter, idempotenter Stripe-Handler (Idempotenz via `payment_events`) | Signaturprüfung, Idempotenz-Key, Entitlements serverseitig |
+| `create-checkout` | ✅ vorhanden | Stripe-Checkout-Session erzeugen (Erzeuger-Abo / Zahlung) | Zod, org-Scope, service_role |
+| `create-reservation` | ⬜ geplant | Reservierung mit Identitätsbezug anlegen | Zod, Rate-Limit, Turnstile, Audit, Benachrichtigung |
+| `farm-availability-upsert` | ⬜ geplant | Erzeuger pflegt Bestand/Verfügbarkeit | Rolle=Erzeuger, org-Scope, Audit |
+| `sb-payment-intent` | ⬜ geplant | SB-Bezahlung am Stand initiieren | QR-Token validieren, Stripe Checkout, Audit |
+| `staff-verify-farm` | ⬜ geplant | Hof-Verifizierung / Eskalation (Staff) | Rolle=Staff, Confirm+Reason, Audit |
 
 **Regeln (nicht verhandelbar):** kein langer Job in einer Edge Function (Timeout-Limits → Workers/Queues); keine sensible Route ohne serverseitigen Org-Scope; kein Webhook ohne Signaturprüfung; kein Geld-/Export-Pfad ohne Audit.
 
 ### 4.3 Datenmodell, RLS & Mandantenfähigkeit
 
-Das vollständige Schema steht in `docs/DATABASE_MODEL.md` (geplant); hier der Architektur-Überblick. **SQL nur als neue, additive Migration** unter `app/supabase/migrations/`. Jede Tabelle trägt: `org_id` (Tenant), Zeitstempel, `deleted_at` (Soft-Delete) und **RLS deny-by-default ab Migration #1** — mit Plattform- **und** Org-Isolationstest.
+Das vollständige Schema steht in `docs/DATABASE_MODEL.md`; hier der Architektur-Überblick. **SQL nur als neue, additive Migration** unter `app/supabase/migrations/`. Jede mandantengebundene Tabelle trägt `org_id` (Tenant) und **RLS deny-by-default ab Migration #1** (mit Plattform- **und** Org-Isolationstest); Zeitstempel/`deleted_at` je Tabelle (siehe `DATABASE_MODEL.md` §4). Der folgende ER-Auszug bildet das **real migrierte** Schema (0001–0004) ab: `farms.id`/`products.id` sind **`text`-Slugs** (kein UUID), `profiles`-PK ist `user_id`, der Plan liegt auf `subscriptions` (nicht `orgs`), und **Verfügbarkeit ist die Enum-Spalte `products.availability` — keine separate Tabelle**.
 
 ```mermaid
 erDiagram
   ORGS ||--o{ PROFILES : "hat"
   ORGS ||--o{ FARMS : "betreibt"
+  ORGS ||--o{ SUBSCRIPTIONS : "hat Abo"
   FARMS ||--o{ PRODUCTS : "führt"
-  PRODUCTS ||--o{ AVAILABILITY : "hat Status"
   FARMS ||--o{ RESERVATIONS : "erhält"
   PRODUCTS ||--o{ RESERVATIONS : "betrifft"
-  PROFILES ||--o{ RESERVATIONS : "stellt (Käufer)"
 
   ORGS {
     uuid id PK
     text name
-    text plan "demo|basis|plus|pro|individuell"
     timestamptz created_at
     timestamptz deleted_at
   }
-  PROFILES {
+  SUBSCRIPTIONS {
     uuid id PK
     uuid org_id FK
-    text role "kaeufer|erzeuger|staff"
-    text email
+    text plan "demo|basis|plus|pro|individuell"
+    enum status "subscription_status"
+  }
+  PROFILES {
+    uuid user_id PK "= auth.users.id"
+    uuid org_id FK "NULL bei Käufer"
+    enum role "user_role: kaeufer|erzeuger|staff|owner"
+    text display_name
   }
   FARMS {
-    uuid id PK
+    text id PK "Slug"
     uuid org_id FK
-    text name
-    text type
+    enum type "farm_type"
     text plz
-    numeric lat
-    numeric lng
-    bool is_public
+    double lat
+    double lng
+    bool verified
     timestamptz deleted_at
   }
   PRODUCTS {
-    uuid id PK
-    uuid farm_id FK
+    text id PK "Slug"
+    text farm_id FK
     uuid org_id FK
-    text category
+    enum category "product_category"
     numeric price
+    enum availability "availability_state"
     bool seasonal
-  }
-  AVAILABILITY {
-    uuid id PK
-    uuid product_id FK
-    uuid org_id FK
-    text status "available|low|soon|out"
-    timestamptz updated_at
   }
   RESERVATIONS {
     uuid id PK
     uuid org_id FK
-    uuid farm_id FK
-    uuid product_id FK
+    text farm_id FK
+    text product_id FK
     int quantity
     text pickup_window
-    text status
+    enum status "reservation_status"
     timestamptz created_at
   }
 ```
@@ -536,7 +536,16 @@ app/
     │   └── types.ts          # Domain-Typen (Source of Truth fürs Schema)
     └── styles/
         └── theme.css         # Editorial-Design-Tokens (keine externen Fonts)
+└── supabase/                  # DB + Edge Functions (real vorhanden)
+    ├── migrations/            # 0001_core · 0002_payments · 0003_marketplace · 0004_onboarding
+    ├── functions/            # Edge Functions (Deno): stripe-webhook, create-checkout,
+    │                         #   _shared/ (cors, supabaseAdmin, stripe, email)
+    ├── seed.sql              # idempotenter SQL-Seed (deckungsgleich mit src/lib/seed.ts)
+    ├── setup_all.sql         # One-Shot-Setup (Migrationen gebündelt)
+    └── README.md
 ```
+
+> **Hinweis:** Der `app/src`-Baum oben zeigt den Kern-Stand des Hofladen-Finders. Weitere real vorhandene Seiten/Komponenten (Erzeuger-Onboarding-Wizard, Self-Service, Staff-Konsole, Saison-Radar, SB-Korb, Auth-Gerüst, `/status`) sind über die Wellen hinzugekommen (siehe `docs/releases/PHASE_STATUS.md`) und hier aus Übersichtsgründen nicht einzeln gelistet.
 
 ### 10.3 App (`app/`) — Zielzustand (wächst über die Wellen)
 
@@ -549,9 +558,10 @@ app/
 │   ├── lib/                  # + auth.ts, audit.ts, schema/ (Zod), api/ (Edge-Function-Clients)
 │   └── styles/               # theme.css → später packages/ui absorbiert (ADR 0002)
 └── supabase/
-    ├── migrations/           # additive SQL-Migrationen, RLS deny-by-default + Isolationstest
-    └── functions/            # Edge Functions (Deno): create-reservation, stripe-webhook,
-                              #   farm-availability-upsert, sb-payment-intent, staff-verify-farm
+    ├── migrations/           # additive SQL-Migrationen (0001–0004 vorhanden), RLS deny-by-default + Isolationstest
+    └── functions/            # Edge Functions (Deno) — vorhanden: stripe-webhook, create-checkout;
+                              #   geplant: create-reservation, farm-availability-upsert,
+                              #   sb-payment-intent, staff-verify-farm
 ```
 
 > **Absorptionspfad (ADR 0002):** Sobald ≥2 Plattformen genug teilen, wandern `theme.css → packages/ui` und Auth/Billing → `packages/core`; `app/` zieht ohne Rewrite in den geteilten Workspace.

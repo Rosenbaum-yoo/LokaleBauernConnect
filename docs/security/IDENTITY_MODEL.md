@@ -127,8 +127,8 @@ $$;
 ### 4.1 Trennungs-Garantien
 | Welt | Rolle(n) | Storage-Key (isoliert) | Einstieg | Trennung von |
 |---|---|---|---|---|
-| **Käufer-Welt** | `buyer` (+ Gast) | `sb-buyer-auth` | `/`, `/finder`, `/konto` | Erzeuger-, Staff-Welt |
-| **Erzeuger-Welt** | `producer` | `sb-producer-auth` | `/erzeuger/*` | Käufer-, Staff-Welt |
+| **Käufer-Welt** | `kaeufer` (+ Gast) | `sb-buyer-auth` | `/`, `/finder`, `/konto` | Erzeuger-, Staff-Welt |
+| **Erzeuger-Welt** | `erzeuger` | `sb-producer-auth` | `/erzeuger/*` | Käufer-, Staff-Welt |
 | **Staff/Owner-Welt** | `staff` · `owner` | `sb-staff-auth` | `/staff/*`, `/owner/*` | Käufer-, Erzeuger-Welt |
 
 - **Isolierter Token-Store:** Pro Welt ein eigener `supabase-js`-Client mit eigenem `storageKey` (kein gemeinsamer `localStorage`-Slot). Ein Käufer-Cookie/Token öffnet **keine** Erzeuger-/Staff-Oberfläche; Edge/RLS prüfen zusätzlich `role` — die UI-Trennung ist Defense-in-Depth, nie alleinige Grenze.
@@ -146,7 +146,7 @@ $$;
 
 ### 4.3 Gast-Käufer (kontolos)
 - Reservierung **ohne Konto** erlaubt: Turnstile-geschützte Edge Function legt `reservations`-Zeile an, gibt **signierten Bestätigungs-Token** zurück (HMAC, kurzlebig, an Reservierung gebunden).
-- Einsicht/Storno einer Gast-Reservierung **nur** per Token-Match (RLS: `buyer_id = auth.uid()` **ODER** Gast-Token-Match) — **keine** Auflistung fremder Reservierungen (`ROLE_AND_PERMISSION_MODEL.md` §3.2).
+- Einsicht/Storno einer Gast-Reservierung **nur** per Token-Match (**Soll**, additive Migration: Käufer-Selbstsicht-Spalte + Gast-Token-Match). Ist-Stand (`0001_core.sql`): `reservations` trägt **kein** käuferbezogenes Feld; gelesen wird ausschließlich org-gebunden über `reservations_owner_read` (`is_org_member(org_id)`) durch den Erzeuger — **keine** Auflistung fremder Reservierungen (`ROLE_AND_PERMISSION_MODEL.md` §3.2).
 - Gast hat **keine** `app_metadata`-Rolle und **keinen** Welt-Zugang über Käufer-Lesepfade hinaus.
 
 ---

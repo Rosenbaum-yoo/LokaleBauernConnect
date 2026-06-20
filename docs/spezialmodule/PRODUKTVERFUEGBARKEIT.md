@@ -4,7 +4,7 @@
 >
 > **Vermittler-Rolle:** Die Plattform stellt Verfügbarkeit **dar**, sie verkauft nicht und garantiert keine Mengen. Die Wahrheit über ein Produkt **besitzt der Hof** (Domain owns truth, Plattform owns aggregation). Disclaimer durchgängig: *„Angaben ohne Gewähr — der Hof pflegt selbst. Bitte rufe bei knappen Mengen kurz an."*
 >
-> **Status (Stand 2026-06-19):** Modell + Anzeige (`available/low/soon/out` + `seasonal`) sind in Schema (`supabase/migrations/0001_core.sql`), Typen (`src/lib/types.ts`) und UI (`src/components/AvailabilityBadge.tsx`) **live**. Der numerische **Bestand** (`stock_qty`) und der **Erzeuger-Self-Service-Editor** sind in dieser Spec definiert und werden als **additive Migration `0002_availability_stock.sql`** + Editor-Strecke umgesetzt (WAVE_04 B / Phase 4 Track D). Diese Datei ist die verbindliche Bau-Spezifikation dafür.
+> **Status (Stand 2026-06-19):** Modell + Anzeige (`available/low/soon/out` + `seasonal`) sind in Schema (`supabase/migrations/0001_core.sql`), Typen (`src/lib/types.ts`) und UI (`src/components/AvailabilityBadge.tsx`) **live**. Der numerische **Bestand** (`stock_qty`) und der **Erzeuger-Self-Service-Editor** sind in dieser Spec definiert und werden als **additive Migration `0005_availability_stock.sql`** + Editor-Strecke umgesetzt (WAVE_04 B / Phase 4 Track D). Diese Datei ist die verbindliche Bau-Spezifikation dafür.
 
 ---
 
@@ -49,7 +49,7 @@ Vier Zustände — **kanonisch, nicht erweitern ohne ADR** (Enum in DB + TS-Unio
 ### 2.2 Bestand (`stock_qty`) — additives Feld
 
 ```sql
--- additiv, Teil von 0002_availability_stock.sql (siehe §6)
+-- additiv, Teil von 0005_availability_stock.sql (siehe §6)
 stock_qty       integer     null check (stock_qty is null or stock_qty >= 0),
 low_threshold   integer     not null default 5 check (low_threshold >= 0),
 availability_updated_at timestamptz not null default now()
@@ -73,7 +73,7 @@ seasonal boolean not null default false   -- bereits in 0001_core.sql, Z. 86
 ### 2.4 Datenmodell-Übersicht (Ist + additiv)
 
 ```
-products (Ist: 0001_core.sql)            +  additiv (0002_availability_stock.sql)
+products (Ist: 0001_core.sql)            +  additiv (0005_availability_stock.sql)
 ├─ id            text  PK                 ├─ stock_qty               integer  null  (>=0)
 ├─ farm_id       text  FK → farms         ├─ low_threshold           integer  not null default 5
 ├─ org_id        uuid  FK → orgs   ◄──────┤   (RLS-Anker: nur eigene org schreibt)
@@ -124,7 +124,8 @@ Bei `soon`/`out` erscheint ein CTA „Benachrichtigen". Er schreibt (anonym erla
 ### 4.1 Leitprinzip
 **Tap statt Tippen.** Der Erzeuger steht im Hofladen oder auf dem Feld, ein Handschuh aus. Pflege eines Produkt-Status muss in **≤ 2 Taps** ohne Tastatur möglich sein. Mengen-Eingabe ist optional und über große ±-Stepper bedienbar.
 
-### 4.2 Surface „Meine Produkte" (`/erzeuger/produkte`)
+### 4.2 Surface „Meine Produkte" (Ist: `/hof/:farmId` · Ziel: `/erzeuger/produkte`)
+> **Ist-Stand:** Die Verfügbarkeits-Selbstpflege ist **live** im Erzeuger-Bereich `ProducerPage` (Route `/hof/:farmId`, `app/src/pages/ProducerPage.tsx`): je Produkt ein `<select>` mit `available/low/soon/out`, optimistic Update, Persistenz über `updateProductAvailability` (`app/src/lib/data.ts`, RLS `products_owner_write`). Die unten beschriebene dedizierte mobil-zuerst-Strecke `/erzeuger/produkte` (Tap-Targets, Stepper, Bulk) ist der **Ziel-Ausbau**.
 - **Zugang:** nur Rolle `erzeuger` (RBAC, Surface-Sichtbarkeit) **und** RLS-gebunden an die eigene `org_id`. Käufer/Staff sehen dieses Surface nicht (Session-Trennung, CLAUDE.md „Welten strikt trennen").
 - **Liste:** alle Produkte **des eigenen Hofs** (Query implizit org-gescopet durch RLS — der Client filtert nicht, die DB liefert nur Eigenes).
 - **Je Produktzeile (mobil-Card):**
@@ -193,9 +194,9 @@ Audit wird **serverseitig** geschrieben (Edge Function für Bulk; DB-Trigger fü
 
 ---
 
-## 6 · Additive Migration `0002_availability_stock.sql`
+## 6 · Additive Migration `0005_availability_stock.sql`
 
-> Strikt additiv (CLAUDE.md DB-Regeln), idempotent, mit Rollback-Notiz. Wird unter `app/supabase/migrations/0002_availability_stock.sql` angelegt.
+> Strikt additiv (CLAUDE.md DB-Regeln), idempotent, mit Rollback-Notiz. Wird unter `app/supabase/migrations/0005_availability_stock.sql` angelegt.
 
 ### 6.1 Spalten + Constraints
 ```sql
@@ -259,7 +260,7 @@ create index if not exists products_seasonal_idx on products (seasonal) where se
 -- Rollback (manuell, falls nötig):
 -- drop trigger products_touch_availability on products;
 -- drop function touch_availability_updated_at();
--- drop trigger products_enforce_org on products;        -- nur falls 0002 ihn neu eingeführt hat
+-- drop trigger products_enforce_org on products;        -- nur falls 0005 ihn neu eingeführt hat
 -- alter table products drop column availability_updated_at, drop column low_threshold, drop column stock_qty;
 -- (availability + seasonal bleiben — aus 0001, nicht aus diesem Rollback betroffen)
 ```
@@ -335,7 +336,7 @@ create index if not exists products_seasonal_idx on products (seasonal) where se
 
 ## 9 · Verweise & Wiederverwendbarkeit
 
-- **Schema/Policies:** `app/supabase/migrations/0001_core.sql` (Ist) · `0002_availability_stock.sql` (additiv, §6).
+- **Schema/Policies:** `app/supabase/migrations/0001_core.sql` (Ist) · `0005_availability_stock.sql` (additiv, §6).
 - **Typen/UI:** `app/src/lib/types.ts` · `app/src/components/AvailabilityBadge.tsx` · `FarmCard.tsx` · `FarmDrawer.tsx`.
 - **Nachbarmodule:** `RESERVIERUNG_ABHOLUNG.md` (nutzt `available`/`low` als Buchbarkeit) · `SAISON_RADAR.md` (nutzt `seasonal`) · `SB_BEZAHLUNG_USP.md` (späterer opt-in Auto-Abzug, eigener ADR) · `HOFLADEN_FINDER.md` (Einstiegspunkt).
 - **Imperium-Wiederverwendung:** Das Muster *„org-gebundene Selbstpflege eines öffentlich lesbaren Katalogs (public read + owner write per RLS, mobil-zuerst, Frische-Signal, optimistic + Audit)"* ist **plattformübergreifend** anwendbar (jede ConnectCore-Tochter mit Anbieter-gepflegtem Bestand/Angebot) → Kandidat für `.claude/memory/patterns/`.

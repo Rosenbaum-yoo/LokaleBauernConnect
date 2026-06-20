@@ -214,7 +214,7 @@ reservations (
 --  reservations_owner_read   : auth SELECT nur eigene Org (profiles.org_id)
 ```
 
-### 7.2 Additive Erweiterung — `migrations/0003_reservations_lifecycle.sql`
+### 7.2 Additive Erweiterung — `migrations/0006_reservations_lifecycle.sql`
 > Additiv, idempotent (`if not exists`/`do $$`), RLS-konform. Verändert keine bestehenden Policies destruktiv.
 
 ```sql
@@ -455,4 +455,4 @@ Storno durch Käufer:in: `requested`→`cancelled` jederzeit; `confirmed`→`can
 - **Bezahlung (Nachgelagert):** Modul „Bargeldlose Bezahlung am Stand" (QR→Stripe→Quittung) — `picked_up` markiert den Übergang zur Zahlung am Stand.
 - **Plattform-Pfeiler:** RLS/Tenant-Isolation (org_id, deny-by-default), Zero-State, Audit (`reservation.*`), End-to-End-Verdrahtung, Cloudflare-Schutz (Turnstile/WAF), Disclaimer.
 
-> Neue Migration (`0003_reservations_lifecycle.sql`) und Edge Functions sind **additiv** und ändern keine bestehenden Policies destruktiv. Owner-Freigabe für Backend-/DB-Änderungen einholen (Kosten-/Accountrelevanz Supabase/Cloudflare/Stripe).
+> Neue Migration (`0006_reservations_lifecycle.sql`) und Edge Functions sind **additiv** und ändern keine bestehenden Policies destruktiv. Owner-Freigabe für Backend-/DB-Änderungen einholen (Kosten-/Accountrelevanz Supabase/Cloudflare/Stripe).

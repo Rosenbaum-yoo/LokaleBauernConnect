@@ -9,8 +9,15 @@
 >
 > **Bezug:** `PHASEN.md` (Phase 4 Track A · WAVE_09 Vorbereitung) · `CLAUDE.md` (7 Produktionspfeiler · §USP · Webhook-Regel) · `AGENTS.md` (`payment-engineer` + `edge-functions-spezialist` + `security-auditor`) · `docs/DATABASE_MODEL.md` (§4.7 `sb_payments`, §2 `payment_status`, §7 RLS) · `docs/CORE_BUSINESS_STATE_MACHINES.md` (§4 SB-Zahlung, §3 Hof-Verifizierung) · `docs/COMPLIANCE_MODEL.md` (§6/§7/§9, CMP-04) · `docs/ROLE_AND_PERMISSION_MODEL.md` · `docs/security/TENANT_ISOLATION_MODEL.md`.
 >
-> **Status:** Normativ (Spezifikation für **Phase 4 Track A**, Geld-fluss-Pflicht des Marktstart-Sets). Implementierungs-Tracker: `docs/releases/PHASE_STATUS.md`.
+> **Status:** Normativ (Ziel-Spezifikation für **Phase 4 Track A** — PaymentIntent + Stripe Connect + Gebühr + Quittungs-PDF). Implementierungs-Tracker: `docs/releases/PHASE_STATUS.md`.
 > **Stand:** 2026-06-19 · Zuständig: Payment (Claude) · Subagenten: `payment-engineer` · `edge-functions-spezialist` · `security-auditor` · Freigabe: Owner (Stripe-Account/Connect/Kosten/Go-Live).
+>
+> **Ist-Stand (implementiert, weicht von der Ziel-Architektur unten ab):** Der Live-Flow nutzt **Stripe Checkout (gehostet)**, **nicht** PaymentIntent/Payment Element und **noch kein Connect/keine Gebühr**.
+> - **Route:** `/stand/:farmId` (`app/src/pages/StandPayPage.tsx`) — Korb füllen, optionale E-Mail, „Jetzt sicher bezahlen". (Die unten beschriebene Route `/sb/:farmSlug` ist Ziel-Design.)
+> - **Edge Functions:** `create-checkout` (Modi `sb_payment`, `sb_basket`, `subscription`) und `stripe-webhook` — **nicht** `sb/initiate`/`sb/webhook`/`sb/refund` etc. (Ziel-Design). Betrag serverseitig aus `products.price`; `sb_payments`-Zeile mit Status `initiated` vor Checkout.
+> - **Webhook:** verarbeitet `checkout.session.completed` (→ `sb_payments.status='paid'`, Audit `sb_payment.paid`, **Quittung per E-Mail** via `renderReceipt`/`sendEmail`) und `customer.subscription.updated/deleted`. **Nicht** `payment_intent.succeeded`/`charge.refunded`/`account.updated`.
+> - **Idempotenz:** über Tabelle `payment_events` (`id`=Stripe-`event.id` als PK), **nicht** `UNIQUE(stripe_event_id)` auf `sb_payments`.
+> - **Noch nicht gebaut:** Stripe Connect (Destination Charge/`application_fee`), `platform_fee_cents`, Plan-Gate, Eligibility-Gate, HMAC-signierte QR, Refund-/Dashboard-Endpunkte, Quittungs-PDF im Storage. Alles unten ab §2 ist **Ziel-Spezifikation** für den Ausbau.
 
 ---
 
@@ -128,16 +135,16 @@ Der QR ist der Einstieg in den Flow. Er ist **kein Geheimnis** und enthält **ke
 
 ### 4.2 — Zustände (kanonisch, identisch zu `docs/CORE_BUSINESS_STATE_MACHINES.md` §4 + `payment_status`)
 
-DB-Enum `payment_status = ('pending','processing','succeeded','failed','refunded','cancelled')` (`docs/DATABASE_MODEL.md` §2). Die fachliche State-Machine bildet darauf ab:
+DB-Enum (real, `app/supabase/migrations/0002_payments.sql`): `payment_status = ('initiated','paid','failed','refunded','canceled')`. Die fachliche State-Machine bildet darauf ab:
 
 | State-Machine (Fachbegriff) | `payment_status` | Bedeutung |
 |---|---|---|
-| `initiated` (▶) | `pending` / `processing` | Intent erstellt, noch nicht abgeschlossen |
-| `paid` (⏹ Erfolg) | `succeeded` | Stripe meldet Erfolg; Quittung erzeugt |
-| `failed` (⏹) | `failed` / `cancelled` | Abgebrochen/abgelehnt/Timeout; kein Geldfluss |
-| `refunded` (⏹) | `refunded` | Zuvor bezahlter Betrag (teilw./voll) erstattet |
+| `initiated` (▶) | `initiated` | Checkout-Session erstellt (`sb_payments`-Zeile), noch nicht abgeschlossen |
+| `paid` (⏹ Erfolg) | `paid` | Stripe meldet `checkout.session.completed`; Quittungs-Mail versendet |
+| `failed` (⏹) | `failed` / `canceled` | Abgebrochen/abgelehnt/Timeout; kein Geldfluss |
+| `refunded` (⏹) | `refunded` | Zuvor bezahlter Betrag (teilw./voll) erstattet (Ziel-Design; Refund-Pfad noch nicht implementiert) |
 
-> `processing` deckt asynchrone Methoden (z. B. SEPA) ab; `cancelled` deckt den vom Käufer/Timeout abgebrochenen Intent. UI-Labels DE, Status-Schlüssel persistiert (sprachneutral).
+> `canceled` deckt den vom Käufer/Timeout abgebrochenen Vorgang. UI-Labels DE, Status-Schlüssel persistiert (sprachneutral). Asynchrone Methoden (z. B. SEPA) werden im Checkout-Modell über `checkout.session.completed` final bestätigt.
 
 ### 4.3 — Stripe Connect (Geldfluss zum Hof)
 
@@ -275,13 +282,13 @@ Vollständig verankert in `docs/COMPLIANCE_MODEL.md` — hier die SB-relevanten 
 
 ## 10 · Datenmodell-Anker (Verweis, keine Duplikation)
 
-Quelle: `docs/DATABASE_MODEL.md` §4.7 `sb_payments`, §2 Enum `payment_status`, §5 Indizes, §7 RLS, §8 Trigger.
+Quelle: `app/supabase/migrations/0002_payments.sql` (real) · `docs/DATABASE_MODEL.md`.
 
-- **Tabelle** `sb_payments`: `org_id`, `farm_id`, `product_id?`, `buyer_id?`, `reservation_id?`, `amount_cents`, `platform_fee_cents`, `currency`, `line_items JSONB`, `status payment_status`, `stripe_payment_intent_id UNIQUE`, `stripe_checkout_session_id UNIQUE`, `stripe_event_id UNIQUE`, `receipt_url`, `paid_at`, `refunded_at`, Zeitstempel + `deleted_at`.
-- **RLS** (§7): `SELECT` = `buyer_id = auth.uid() OR (org_id = current_org_id() AND role ∈ {erzeuger,staff}) OR is_staff()`; **`INSERT/UPDATE/DELETE` nur service role** (ausschließlich der Webhook-/Edge-Pfad schreibt). Frontend rein lesend.
-- **Idempotenz** (§4.7/§5): `UNIQUE(stripe_event_id)` + `UNIQUE(stripe_payment_intent_id)`.
-- **Indizes** (§5): `(org_id, status, created_at DESC)` (Dashboard), `(stripe_payment_intent_id)`/`(stripe_event_id)` UNIQUE.
-- **Additive Migration** (§9): `0008_sb_payments.sql` bestehend (Schema+RLS); Track A ergänzt **additiv** Stand-Code/QR-Felder (`farms`/Stand-Erweiterung) und ggf. `stripe_events`-Dedup-Tabelle — neue Spalten `NULL`-bar/`DEFAULT`, mit Rollback (`CLAUDE.md` Verbot „keine Migration ohne Rollback").
+- **Tabelle** `sb_payments` (real, `0002_payments.sql`): `id`, `org_id`, `farm_id`, `product_id?`, `quantity`, `amount_cents`, `currency`, `method?`, `status payment_status (default 'initiated')`, `stripe_checkout_session?`, `stripe_payment_intent?`, `payer_contact?`, `created_at`, `paid_at`.
+- **Ziel-Felder (Track A, additiv, noch nicht angelegt):** `buyer_id?`, `reservation_id?`, `platform_fee_cents`, `line_items JSONB`, `receipt_url`, `refunded_at`, `deleted_at` sowie UNIQUE-Constraints auf den Stripe-IDs.
+- **RLS** (real): `SELECT` org-/staff-gescoped; **`INSERT/UPDATE` nur service role** (ausschließlich Edge `create-checkout` + `stripe-webhook` schreiben). Frontend rein lesend.
+- **Idempotenz (real):** über die Tabelle **`payment_events`** (`id` = Stripe-`event.id` als PK) — ein bereits gesehenes Event ergibt `200` no-op. (`UNIQUE(stripe_event_id)`/`UNIQUE(stripe_payment_intent_id)` direkt auf `sb_payments` ist Ziel-Design.)
+- **Additive Migration:** `0002_payments.sql` (Schema+RLS, Enums `payment_status`/`subscription_status`, Tabellen `subscriptions`/`sb_payments`/`payment_events`) bestehend; Track A ergänzt **additiv** Connect-/QR-/Gebühr-Felder — neue Spalten `NULL`-bar/`DEFAULT`, mit Rollback (`CLAUDE.md` Verbot „keine Migration ohne Rollback").
 
 > **Keine Schema-Neudefinition hier.** Diese Spec verweist; die DB-Wahrheit bleibt `docs/DATABASE_MODEL.md` + `app/supabase/migrations/`.
 
@@ -372,5 +379,3 @@ Quelle: `docs/DATABASE_MODEL.md` §4.7 `sb_payments`, §2 Enum `payment_status`,
 *Zuständig: Payment (Claude) · Subagenten: `payment-engineer` · `edge-functions-spezialist` · `security-auditor` · `compliance-officer` (Quittung/Disclaimer) · Freigabe: Owner (Stripe-Account/Connect/Pricing/Go-Live).*
 *Querverweise: `docs/DATABASE_MODEL.md` §4.7 · `docs/CORE_BUSINESS_STATE_MACHINES.md` §4/§3 · `docs/COMPLIANCE_MODEL.md` §0/§4/§7/§9 (CMP-04) · `docs/ROLE_AND_PERMISSION_MODEL.md` · `docs/security/TENANT_ISOLATION_MODEL.md` · `PHASEN.md` Phase 4 Track A / WAVE_09.*
 *Hinweis: Technisch-organisatorische Spezifikation, keine Rechts-/Steuerberatung. Aufsichtsrechtliche Einordnung + Pricing sind Owner-/extern vor Go-Live zu bestätigen.*
-</content>
-</invoke>

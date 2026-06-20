@@ -216,210 +216,225 @@ Trägt die fachliche Rolle. `kaeufer`: typischerweise kein `org_id` (kauft hofü
 
 > **Hinweis:** Es gibt (Stand 0004) **keine** `CHECK ((role='kaeufer') OR org_id IS NOT NULL)`-Invariante, keine `phone/plz/city/marketing_opt_in`-Spalten und **keinen** `on_auth_user_created`-Trigger in den Migrationen. Schreiben auf `profiles` (insb. `role`/`org_id`) ist per RLS nur `service_role` erlaubt (verhindert Self-Promotion); Lesen nur das eigene Profil.
 
-### 4.3 `farms` — Hof / Hofladen (Erzeuger-gepflegt)
+### 4.3 `farms` — Hof / Hofladen (0001_core.sql, erweitert in 0003)
 
-DB-Entsprechung des `Farm`-Typs. `lat/lng` für Distanz/Karte; `pickup_windows` als `TEXT[]` (wählbare Abholfenster). Geschäftsfelder vom Erzeuger gepflegt, Sichtbarkeit über `status` + Staff-Verifizierung.
+DB-Entsprechung des `Farm`-Typs. **`id` ist ein `TEXT`-Slug** (stabil, z. B. `'hof-sonnenwiese'`), kein UUID. `lat/lng` sind `NOT NULL`. Sichtbarkeit läuft über `verified` (Trust-Flag) + `deleted_at` (Soft-Delete) — es gibt **keinen** `status`-Lifecycle. Reputationsspalten (`rating_avg/rating_count/reputation_grade`) ergänzt Migration `0003_marketplace.sql` (per Trigger gepflegt).
 
 | Spalte | Typ | Constraints / Default | Bedeutung |
 |---|---|---|---|
-| `id` | UUID | PK | |
-| `org_id` | UUID | NOT NULL, FK → `orgs(id)` ON DELETE CASCADE | Mandant |
-| `name` | TEXT | NOT NULL, CHECK length 2–120 | |
+| `id` | text | PK | stabiler Slug (Deep-Link `/hof/:id`) |
+| `org_id` | uuid | NOT NULL, FK → `orgs(id)` ON DELETE CASCADE | Mandant |
+| `name` | text | NOT NULL | |
 | `type` | `farm_type` | NOT NULL | Hofladen/Bauernhof/Imkerei/… |
-| `slug` | TEXT | NOT NULL, UNIQUE | Deep-Link (`/hof/:slug`) |
-| `story` | TEXT | NULL, CHECK length ≤ 2000 | Editorial-Hoftext |
-| `street` | TEXT | NOT NULL | |
-| `plz` | TEXT | NOT NULL, CHECK `~ '^[0-9]{5}$'` | Such-/Filterschlüssel (Index) |
-| `city` | TEXT | NOT NULL | |
-| `lat` | DOUBLE PRECISION | NULL, CHECK between -90 and 90 | NULL = unbekannte Geo (ehrliche UI, ADR 0002) |
-| `lng` | DOUBLE PRECISION | NULL, CHECK between -180 and 180 | |
-| `opening_hours` | TEXT | NULL | Freitext (z. B. „Mo–Fr 9–18, Sa 8–13") |
-| `pickup_windows` | TEXT[] | NOT NULL DEFAULT `'{}'` | Wählbare Abholfenster |
-| `categories` | `product_category[]` | NOT NULL DEFAULT `'{}'` | Denormalisierte Kategorie-Facette (Finder-Filter; via Trigger aus `products` gepflegt) |
-| `is_self_service` | BOOLEAN | NOT NULL DEFAULT false | Unbemannter SB-Hofladen → SB-Bezahlung anwendbar (USP) |
-| `status` | `farm_status` | NOT NULL DEFAULT `'draft'` | draft→pending_review→published; suspended via Staff |
-| `verified_at` | TIMESTAMPTZ | NULL | Staff-Verifizierung (Trust) |
-| `verified_by` | UUID | NULL, FK → `profiles(id)` | Staff-Akteur |
-| `created_at` / `updated_at` / `deleted_at` | TIMESTAMPTZ | s. o. | |
+| `street` | text | NOT NULL | |
+| `plz` | text | NOT NULL | Such-/Filterschlüssel (Index) |
+| `city` | text | NOT NULL | |
+| `lat` | double precision | NOT NULL | Distanz/Karte |
+| `lng` | double precision | NOT NULL | |
+| `story` | text | NOT NULL DEFAULT `''` | Editorial-Hoftext |
+| `opening_hours` | text | NOT NULL DEFAULT `''` | Freitext |
+| `pickup_windows` | text[] | NOT NULL DEFAULT `'{}'` | Wählbare Abholfenster |
+| `categories` | `product_category[]` | NOT NULL DEFAULT `'{}'` | Kategorie-Facette (Finder-Filter) |
+| `verified` | boolean | NOT NULL DEFAULT false | Staff-Verifizierung (Trust) |
+| `rating_avg` | numeric(3,2) | NOT NULL DEFAULT 0 (0003) | aggregiert aus `reviews` (Trigger) |
+| `rating_count` | integer | NOT NULL DEFAULT 0 (0003) | Anzahl veröffentlichter Bewertungen |
+| `reputation_grade` | text | NOT NULL DEFAULT `'neu'`, CHECK in (`neu`,`bronze`,`silber`,`gold`) (0003) | abgeleitete Reputationsstufe |
+| `created_at` / `updated_at` / `deleted_at` | timestamptz | created/updated DEFAULT now(); `updated_at` per Trigger | |
 
-### 4.4 `products` — Produkt eines Hofes (Erzeuger-Selbstpflege)
+> Felder wie `slug`, `status`, `is_self_service`, `verified_at`, `verified_by` existieren **nicht**. Unbemannte SB-Stände werden über `org_locations.is_unmanned` (0003) modelliert, nicht über ein `farms`-Flag.
 
-Stammdaten des Produkts. Die **momentane** Verfügbarkeit/Saison lebt in `availability` (zeitveränderlich); ein gespiegeltes `availability`-Enum auf `products` hält den Schnellfilter aktuell (Trigger).
+### 4.4 `products` — Produkt eines Hofes (0001_core.sql)
+
+Stammdaten **inkl.** aktueller Verfügbarkeit. Die Verfügbarkeit lebt **direkt** als Enum-Spalte `availability` auf `products` — es gibt **keine** separate `availability`-Tabelle und keine Verfügbarkeits-Historie.
 
 | Spalte | Typ | Constraints / Default | Bedeutung |
 |---|---|---|---|
-| `id` | UUID | PK | |
-| `org_id` | UUID | NOT NULL, FK → `orgs(id)` ON DELETE CASCADE | Mandant (= `farms.org_id`, per Trigger erzwungen) |
-| `farm_id` | UUID | NOT NULL, FK → `farms(id)` ON DELETE CASCADE | |
-| `name` | TEXT | NOT NULL, CHECK length 1–120 | |
+| `id` | text | PK | stabiler Slug/ID |
+| `farm_id` | text | NOT NULL, FK → `farms(id)` ON DELETE CASCADE | |
+| `org_id` | uuid | NOT NULL, FK → `orgs(id)` ON DELETE CASCADE | Mandant |
+| `name` | text | NOT NULL | |
 | `category` | `product_category` | NOT NULL | |
-| `unit` | TEXT | NOT NULL | z. B. „Schale 500g", „Glas 250g", „kg" |
-| `price_cents` | INTEGER | NOT NULL, CHECK ≥ 0 | Preis in Cent (kein Float-Geld) |
-| `currency` | CHAR(3) | NOT NULL DEFAULT `'EUR'` | |
-| `availability` | `availability_status` | NOT NULL DEFAULT `'available'` | Schnellfilter-Spiegel des aktuellen `availability`-Satzes |
-| `seasonal` | BOOLEAN | NOT NULL DEFAULT false | Saison-Radar-Kennzeichnung |
-| `sort_order` | INTEGER | NOT NULL DEFAULT 0 | Reihenfolge im Hofladen |
-| `created_at` / `updated_at` / `deleted_at` | TIMESTAMPTZ | s. o. | |
+| `unit` | text | NOT NULL | z. B. „Schale 500g", „Glas 250g", „kg" |
+| `price` | numeric(10,2) | NOT NULL, CHECK ≥ 0 | Preis in EUR (kein Cent-Integer) |
+| `availability` | `availability_state` | NOT NULL DEFAULT `'available'` | aktueller Bestands-/Saisonstatus |
+| `seasonal` | boolean | NOT NULL DEFAULT false | Saison-Radar-Kennzeichnung |
+| `created_at` / `updated_at` | timestamptz | DEFAULT now(); `updated_at` per Trigger | |
 
-> **Geld als Integer-Cent:** `price` aus `types.ts` (EUR-Float) wird DB-seitig als `price_cents` geführt; der Data-Layer mappt `price_cents/100 → price`. Verhindert Rundungsfehler bei SB-Zahlung.
+> **Preis als `numeric(10,2)` (EUR):** `Product.price` (`types.ts`) entspricht direkt der DB-Spalte; der Data-Layer (`mapFarm` in `data.ts`) liest `price` ohne Cent-Umrechnung. Es gibt **keine** `currency`-, `sort_order`- oder `deleted_at`-Spalte auf `products`.
 
-### 4.5 `availability` — Verfügbarkeits-/Saison-Fenster (zeitveränderlich)
+### 4.5 `reservations` — Vorbestellung/Abholung (0001_core.sql, erweitert in 0002)
 
-Trennt die *flüchtige* Verfügbarkeit von den Produktstammdaten. Treibt **Saison-Radar** und Schnellfilter; jeder Erzeuger-Pflegevorgang erzeugt einen neuen, gültigen Satz (Historie bleibt erhalten → Auswertung/Audit).
+DB-Entsprechung des `Reservation`-Typs. Käufer (eingeloggt **oder** Gast) reserviert ein Produkt zu einem Abholfenster. Es gibt **keinen** `buyer_id`-Bezug — der Käufer wird über `name` + `contact` erfasst (Gast-fähig). Zustandsmaschine siehe §6.
 
 | Spalte | Typ | Constraints / Default | Bedeutung |
 |---|---|---|---|
-| `id` | UUID | PK | |
-| `org_id` | UUID | NOT NULL, FK → `orgs(id)` ON DELETE CASCADE | Mandant |
-| `farm_id` | UUID | NOT NULL, FK → `farms(id)` ON DELETE CASCADE | Denormalisiert für Finder-Joins |
-| `product_id` | UUID | NOT NULL, FK → `products(id)` ON DELETE CASCADE | |
-| `status` | `availability_status` | NOT NULL | available \| low \| soon \| out |
-| `qty_estimate` | INTEGER | NULL, CHECK ≥ 0 | Optionaler Restbestand (Erzeuger-Schätzung) |
-| `valid_from` | TIMESTAMPTZ | NOT NULL DEFAULT now() | Gültig ab |
-| `valid_to` | TIMESTAMPTZ | NULL, CHECK `valid_to IS NULL OR valid_to > valid_from` | Gültig bis (NULL = bis auf Weiteres) |
-| `is_current` | BOOLEAN | NOT NULL DEFAULT true | genau **ein** aktueller Satz pro `product_id` (Partial-Unique-Index) |
-| `note` | TEXT | NULL | z. B. „Nur Vorbestellung", „Erntefrisch ab Do" |
-| `created_at` / `updated_at` / `deleted_at` | TIMESTAMPTZ | s. o. | |
-
-> **Invariante:** Partieller Unique-Index `UNIQUE (product_id) WHERE is_current AND deleted_at IS NULL` — höchstens ein aktueller Verfügbarkeitssatz je Produkt. Beim Setzen eines neuen Satzes wird der bisherige per Trigger auf `is_current=false` gesetzt. `products.availability` wird vom selben Trigger gespiegelt.
-
-### 4.6 `reservations` — Vorbestellung/Abholung (Kernflow)
-
-DB-Entsprechung des `Reservation`-Typs. Käufer (eingeloggt **oder** Gast mit Kontakt) reserviert ein Produkt zu einem Abholfenster. Zustandsmaschine siehe §6.
-
-| Spalte | Typ | Constraints / Default | Bedeutung |
-|---|---|---|---|
-| `id` | UUID | PK | |
-| `org_id` | UUID | NOT NULL, FK → `orgs(id)` ON DELETE CASCADE | Mandant des Hofes |
-| `farm_id` | UUID | NOT NULL, FK → `farms(id)` ON DELETE CASCADE | |
-| `product_id` | UUID | NOT NULL, FK → `products(id)` ON DELETE RESTRICT | |
-| `buyer_id` | UUID | NULL, FK → `profiles(id)` ON DELETE SET NULL | NULL = Gast-Reservierung |
-| `quantity` | INTEGER | NOT NULL, CHECK between 1 and 999 | |
-| `pickup_window` | TEXT | NOT NULL | Gewähltes Abholfenster (muss in `farms.pickup_windows` liegen — Edge-Validierung) |
-| `name` | TEXT | NOT NULL, CHECK length 2–120 | Abholer-Name (auch bei Gast) |
-| `contact` | TEXT | NOT NULL | E-Mail oder Telefon (Zod-validiert in Edge Function) |
+| `id` | uuid | PK, `gen_random_uuid()` | |
+| `farm_id` | text | NOT NULL, FK → `farms(id)` ON DELETE CASCADE | |
+| `product_id` | text | NOT NULL, FK → `products(id)` ON DELETE CASCADE | |
+| `org_id` | uuid | NOT NULL, FK → `orgs(id)` ON DELETE CASCADE | Mandant des Hofes |
+| `quantity` | integer | NOT NULL, CHECK between 1 and 50 | |
+| `pickup_window` | text | NOT NULL | Gewähltes Abholfenster |
+| `name` | text | NOT NULL | Abholer-Name (auch bei Gast) |
+| `contact` | text | NOT NULL | E-Mail oder Telefon |
 | `status` | `reservation_status` | NOT NULL DEFAULT `'requested'` | Lifecycle |
-| `unit_price_cents` | INTEGER | NOT NULL, CHECK ≥ 0 | Preis-Snapshot zur Reservierungszeit (kein nachträgliches Drift) |
-| `note` | TEXT | NULL | Käufer-Nachricht an den Hof |
-| `cancel_reason` | TEXT | NULL | Pflicht bei Status `cancelled`/`no_show` (Audit) |
-| `sb_payment_id` | UUID | NULL, FK → `sb_payments(id)` ON DELETE SET NULL | optionale Verknüpfung zur SB-Zahlung |
-| `created_at` / `updated_at` / `deleted_at` | TIMESTAMPTZ | s. o. | |
+| `payment_method` | text | NOT NULL DEFAULT `'pickup_cash'`, CHECK in (`pickup_cash`,`online`) (0002) | Barzahlung vor Ort vs. online |
+| `payment_status` | `payment_status` | NOT NULL DEFAULT `'initiated'` (0002) | Zahlungsstatus bei Online-Zahlung |
+| `created_at` | timestamptz | NOT NULL DEFAULT now() | |
 
-### 4.7 `sb_payments` — Sichere SB-Bezahlung (⭐ USP)
+> Felder wie `buyer_id`, `unit_price_cents`, `note`, `cancel_reason`, `sb_payment_id`, `updated_at`, `deleted_at` existieren **nicht** auf `reservations`. Mengen-Obergrenze ist **50** (nicht 999).
 
-Zahlungsanbindung am unbemannten SB-Hofladen: QR am Stand → Stripe → Quittung. **Stripe ist die Wahrheit**, diese Tabelle ist der signaturgeprüfte, idempotente Spiegel (vom Webhook-Handler in einer Edge Function gepflegt). Geld fließt via **Stripe Connect** an den Hof; die Plattform behält nur `platform_fee_cents`.
+### 4.6 `sb_payments` — Sichere SB-Bezahlung (⭐ USP, 0002_payments.sql; `location_id` aus 0003)
 
-| Spalte | Typ | Constraints / Default | Bedeutung |
-|---|---|---|---|
-| `id` | UUID | PK | |
-| `org_id` | UUID | NOT NULL, FK → `orgs(id)` ON DELETE RESTRICT | Mandant (Auszahlungsempfänger via Connect) |
-| `farm_id` | UUID | NOT NULL, FK → `farms(id)` ON DELETE RESTRICT | SB-Stand |
-| `product_id` | UUID | NULL, FK → `products(id)` ON DELETE SET NULL | optional (Warenkorb in `line_items`) |
-| `buyer_id` | UUID | NULL, FK → `profiles(id)` ON DELETE SET NULL | NULL = anonymer SB-Kauf |
-| `reservation_id` | UUID | NULL, FK → `reservations(id)` ON DELETE SET NULL | falls aus Reservierung bezahlt |
-| `amount_cents` | INTEGER | NOT NULL, CHECK > 0 | Bruttobetrag |
-| `platform_fee_cents` | INTEGER | NOT NULL DEFAULT 0, CHECK ≥ 0 | Plattformgebühr (Monetarisierung) |
-| `currency` | CHAR(3) | NOT NULL DEFAULT `'EUR'` | |
-| `line_items` | JSONB | NOT NULL DEFAULT `'[]'` | gekaufte Positionen (Snapshot für Quittung) |
-| `status` | `payment_status` | NOT NULL DEFAULT `'pending'` | Stripe-gespiegelt |
-| `stripe_payment_intent_id` | TEXT | UNIQUE, NULL | Idempotenz-Anker |
-| `stripe_checkout_session_id` | TEXT | UNIQUE, NULL | |
-| `stripe_event_id` | TEXT | UNIQUE, NULL | Webhook-Replay-Schutz |
-| `receipt_url` | TEXT | NULL | Quittungs-Link (Käufer) |
-| `paid_at` | TIMESTAMPTZ | NULL | |
-| `refunded_at` | TIMESTAMPTZ | NULL | |
-| `created_at` / `updated_at` / `deleted_at` | TIMESTAMPTZ | s. o. | |
-
-> **Webhook-Regel (CLAUDE.md):** EIN signaturgeprüfter, idempotenter Handler ist Wahrheit. Idempotenz über `UNIQUE(stripe_event_id)` + `UNIQUE(stripe_payment_intent_id)`. Frontend liest nur lesend; Statusübergänge schreibt ausschließlich die Edge Function (service role). Compliance: Plattform = Zahlungsanbindung/Vermittler, kein Eigenverkauf.
-
-### 4.8 `audit_log` — Append-only Audit (unabschaltbar)
-
-Jede kritische Mutation: wer/was/warum. Append-only (kein UPDATE/DELETE per RLS). `reason` Pflicht bei Status-, Geld- und Lösch-Aktionen (Pfeiler 5).
+Zahlungsanbindung am unbemannten SB-Hofladen: QR am Stand → Stripe → Quittung. **Stripe ist die Wahrheit**, diese Tabelle ist der idempotente Spiegel (vom Webhook-Handler in einer Edge Function gepflegt).
 
 | Spalte | Typ | Constraints / Default | Bedeutung |
 |---|---|---|---|
-| `id` | BIGSERIAL | PK | monoton, billige Sortierung |
-| `actor_id` | UUID | NULL, FK → `profiles(id)` ON DELETE SET NULL | NULL = System/Edge-Job |
-| `org_id` | UUID | NULL, FK → `orgs(id)` ON DELETE SET NULL | betroffener Mandant |
-| `action` | TEXT | NOT NULL | z. B. `farm.publish`, `reservation.cancel`, `sb_payment.succeeded`, `farm.verify` |
-| `entity_type` | TEXT | NOT NULL | `farm` \| `product` \| `availability` \| `reservation` \| `sb_payment` \| `waitlist` \| `org` \| `profile` |
-| `entity_id` | UUID | NULL | betroffene Zeile |
-| `reason` | TEXT | NULL (App-Pflicht bei kritischen Aktionen) | Begründung (Confirm+Reason) |
-| `old_values` | JSONB | NULL | Vorher-Snapshot |
-| `new_values` | JSONB | NULL | Nachher-Snapshot |
-| `ip_address` | INET | NULL | aus Edge-Request |
-| `user_agent` | TEXT | NULL | |
-| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
+| `id` | uuid | PK, `gen_random_uuid()` | |
+| `org_id` | uuid | NOT NULL, FK → `orgs(id)` ON DELETE CASCADE | Mandant |
+| `farm_id` | text | NOT NULL, FK → `farms(id)` ON DELETE CASCADE | SB-Stand |
+| `product_id` | text | NULL, FK → `products(id)` ON DELETE SET NULL | optional |
+| `quantity` | integer | NOT NULL DEFAULT 1, CHECK between 1 and 50 | |
+| `amount_cents` | integer | NOT NULL, CHECK ≥ 0 | Bruttobetrag |
+| `currency` | text | NOT NULL DEFAULT `'eur'` | |
+| `method` | text | NULL | card/sepa_debit/paypal/giropay/klarna… |
+| `status` | `payment_status` | NOT NULL DEFAULT `'initiated'` | Stripe-gespiegelt |
+| `stripe_checkout_session` | text | NULL | |
+| `stripe_payment_intent` | text | NULL | Idempotenz-Anker |
+| `payer_contact` | text | NULL | optional, für Quittung |
+| `location_id` | uuid | NULL, FK → `org_locations(id)` ON DELETE SET NULL (0003) | QR je Stand |
+| `created_at` | timestamptz | NOT NULL DEFAULT now() | |
+| `paid_at` | timestamptz | NULL | |
 
-### 4.9 `waitlist` — Nachrücker bei ausverkauftem Produkt
+> **Hinweis:** Spaltennamen sind `stripe_payment_intent`/`stripe_checkout_session` (ohne `_id`-Suffix). Es gibt **keine** `platform_fee_cents`, `line_items`, `stripe_event_id`, `receipt_url`, `refunded_at`, `buyer_id`, `reservation_id` Spalten auf `sb_payments`. Webhook-Idempotenz läuft über die separate Tabelle `payment_events` (Stripe-Event-ID als PK). Frontend liest nur lesend; Schreiben nur `service_role`.
 
-Käufer trägt sich für ein `out`-Produkt ein und wird bei Wieder-Verfügbarkeit benachrichtigt (Saison-Radar-Synergie). Doppelt verwendbar: Produkt-Warteliste **und** frühe Plattform-Interessenten (Landing → siehe Seed/ADR 0001, `waitlist` für Go-Live).
+### 4.7 `subscriptions` — Erzeuger-Abo (0002_payments.sql)
 
 | Spalte | Typ | Constraints / Default | Bedeutung |
 |---|---|---|---|
-| `id` | UUID | PK | |
-| `org_id` | UUID | NULL, FK → `orgs(id)` ON DELETE CASCADE | NULL = plattformweite Landing-Warteliste |
-| `farm_id` | UUID | NULL, FK → `farms(id)` ON DELETE CASCADE | NULL bei reiner Plattform-Anmeldung |
-| `product_id` | UUID | NULL, FK → `products(id)` ON DELETE CASCADE | NULL = „ganzer Hof"/Plattform |
-| `buyer_id` | UUID | NULL, FK → `profiles(id)` ON DELETE SET NULL | NULL = Gast/anonym |
-| `contact` | TEXT | NOT NULL, CHECK length 3–200 | E-Mail/Telefon (Zod + Turnstile am öffentlichen Formular) |
-| `status` | `waitlist_status` | NOT NULL DEFAULT `'queued'` | queued→notified→converted / removed / expired |
-| `queue_rank` | INTEGER | NOT NULL DEFAULT 0 | stabile Reihenfolge für Nachrücker-Wellen |
-| `notified_at` | TIMESTAMPTZ | NULL | |
-| `converted_at` | TIMESTAMPTZ | NULL | Eintrag führte zu Reservierung/Kauf |
-| `source` | TEXT | NOT NULL DEFAULT `'app'`, CHECK in (`app`,`landing`,`saison_radar`) | Herkunft |
-| `created_at` / `updated_at` / `deleted_at` | TIMESTAMPTZ | s. o. | |
+| `id` | uuid | PK | |
+| `org_id` | uuid | NOT NULL, FK → `orgs(id)` ON DELETE CASCADE | |
+| `plan` | text | NOT NULL DEFAULT `'basis'`, CHECK in (`demo`,`basis`,`plus`,`pro`,`individuell`) | Abo-Stufe |
+| `status` | `subscription_status` | NOT NULL DEFAULT `'inactive'` | inactive/trialing/active/past_due/canceled |
+| `stripe_customer_id` | text | NULL | |
+| `stripe_subscription_id` | text | UNIQUE, NULL | |
+| `current_period_end` | timestamptz | NULL | Ablauf bezahlter Periode (Webhook) |
+| `created_at` / `updated_at` | timestamptz | DEFAULT now(); `updated_at` per Trigger | |
 
-> **Anti-Spam:** `UNIQUE (coalesce(product_id,'00000000-…'), lower(contact)) WHERE deleted_at IS NULL` verhindert Doppel-Eintragungen pro Produkt+Kontakt. Öffentliche Anmeldung läuft über Edge Function mit Turnstile-Prüfung.
+### 4.8 `audit_log` — Audit (0001_core.sql)
+
+Jede kritische Mutation: wer/was/warum. Geschrieben ausschließlich über `service_role` (keine RLS-Policy für anon/authenticated).
+
+| Spalte | Typ | Constraints / Default | Bedeutung |
+|---|---|---|---|
+| `id` | uuid | PK, `gen_random_uuid()` | |
+| `org_id` | uuid | NULL | betroffener Mandant |
+| `actor_user_id` | uuid | NULL | Akteur (NULL = System/Edge-Job) |
+| `action` | text | NOT NULL | z. B. `reservation.cancel`, `farm.verify` |
+| `entity_type` | text | NOT NULL | `farm` \| `product` \| `reservation` \| … |
+| `entity_id` | text | NULL | betroffene Zeile (text, da Hof-/Produkt-IDs Slugs sind) |
+| `reason` | text | NULL (App-Pflicht bei kritischen Aktionen) | Begründung (Confirm+Reason) |
+| `details` | jsonb | NOT NULL DEFAULT `'{}'` | strukturierter Kontext (Vorher/Nachher etc.) |
+| `created_at` | timestamptz | NOT NULL DEFAULT now() | |
+
+> **Hinweis:** `id` ist `uuid` (nicht BIGSERIAL). Es gibt **keine** `actor_id`/`old_values`/`new_values`/`ip_address`/`user_agent`-Spalten und keine FK-Constraints auf `actor_user_id`/`org_id`. Vorher-/Nachher-Snapshots werden in `details` (jsonb) abgelegt. Append-only wird über die **Abwesenheit** von UPDATE/DELETE-Policies erzwungen (kein Zugriff für anon/authenticated, nur `service_role` schreibt).
+
+### 4.9 `waitlist` — Plattform-Interessenten (Landing, 0001_core.sql)
+
+In den Migrationen ist `waitlist` die **Landing-/Go-Live-Interessentenliste** (frühe Anmelder), **nicht** eine Produkt-Nachrücker-Warteliste. Sie ist insert-only (anon erlaubt), Lesen nur `service_role`.
+
+| Spalte | Typ | Constraints / Default | Bedeutung |
+|---|---|---|---|
+| `id` | uuid | PK, `gen_random_uuid()` | |
+| `role` | text | NOT NULL DEFAULT `'kaeufer'` | Interessent als Käufer/Erzeuger |
+| `name` | text | NULL | |
+| `email` | text | NOT NULL | |
+| `plz` | text | NOT NULL | |
+| `ort` | text | NULL | |
+| `source` | text | NOT NULL DEFAULT `'landing'` | Herkunft |
+| `created_at` | timestamptz | NOT NULL DEFAULT now() | |
+
+> **Hinweis:** `waitlist` hat **kein** `org_id`/`farm_id`/`product_id`/`buyer_id`/`status`/`queue_rank`. Eine Produkt-Nachrücker-Warteschlange (queued→notified→converted) ist **nicht** migriert. Insert-Policy validiert nur `char_length(email) ≤ 320 AND char_length(plz) ≤ 16`.
+
+### 4.10 Marktplatz-Tabellen (0003_marketplace.sql)
+
+| Tabelle | Schlüsselspalten | Zweck |
+|---|---|---|
+| `org_members` | PK `(org_id, user_id)`; `role user_role DEFAULT 'erzeuger'` | Multi-Org: ein User in mehreren Orgs |
+| `org_locations` | `id uuid`, `org_id`, `farm_id?`, `name`, `type` CHECK (`hofladen`/`marktstand`/`sb_stand`/`ab_hof`), `is_unmanned bool`, `deleted_at` | Multi-Standorte inkl. unbemannter SB-Stand (USP) |
+| `reviews` | `id uuid`, `farm_id`, `org_id`, `reservation_id?`, `author_user_id?`, `rating smallint` CHECK 1–5, `comment` (≤2000), `verified bool`, `status` CHECK (`published`/`hidden`) | Bewertungen → Reputation (Trigger `recompute_farm_reputation`) |
+| `bounties` | `id uuid`, `author_user_id?`, `title`, `category product_category?`, `plz`, `radius_km` CHECK 1–200, `reward_cents?`, `status` CHECK (`open`/`fulfilled`/`expired`/`cancelled`) | Käufer-Gesuche mit optionaler Belohnung |
+| `credits_ledger` | `id uuid`, `org_id`, `amount_cents`, `reason`, `ref?` | Empfehlungs-/Bonus-Guthaben für Erzeuger |
+
+### 4.11 `farm_applications` — Erzeuger-Bewerbung (0004_onboarding.sql)
+
+| Spalte | Typ | Constraints / Default | Bedeutung |
+|---|---|---|---|
+| `id` | uuid | PK | |
+| `name` | text | NOT NULL | |
+| `type` | `farm_type` | NOT NULL | |
+| `email` | text | NOT NULL | |
+| `phone` | text | NULL | |
+| `street` / `plz` / `city` | text | NOT NULL | |
+| `categories` | `product_category[]` | NOT NULL DEFAULT `'{}'` | |
+| `story` | text | NOT NULL DEFAULT `''` | |
+| `opening_hours` | text | NOT NULL DEFAULT `''` | |
+| `pickup_windows` | text[] | NOT NULL DEFAULT `'{}'` | |
+| `status` | `application_status` | NOT NULL DEFAULT `'eingereicht'` | eingereicht/in_pruefung/angenommen/abgelehnt |
+| `decision_reason` | text | NULL | Begründung (Staff-Entscheidung) |
+| `decided_at` | timestamptz | NULL | |
+| `created_at` | timestamptz | NOT NULL DEFAULT now() | |
+
+> Insert öffentlich (auch anonym) mit Validierung (`name` 2–200, `email` ≤320, `plz ~ '^[0-9]{5}$'`); Lesen/Moderieren nur `role in ('staff','owner')`.
 
 ---
 
-## 5 · Indizes
+## 5 · Indizes (Ist-Stand 0001–0004)
 
-Ausgelegt auf die drei heißen Pfade: **PLZ-/Geo-Suche** (Finder), **org+status** (Mandanten-Scoping & Sichtbarkeit), **Reservierungs-/Zahlungs-Listen**.
+Genau die in den Migrationen angelegten Indizes — heiße Pfade: **PLZ-Suche** (Finder), **org-Scoping**, **Status-Listen**.
 
-| Tabelle | Index | Typ | Zweck |
+| Tabelle | Index (Migration) | Spalten | Zweck |
 |---|---|---|---|
-| `profiles` | `(org_id)` | B-tree | RLS-Joins, Org-Mitglieder |
-| `profiles` | `(role)` | B-tree | Staff-/Rollen-Lookups |
-| `farms` | `(org_id, status)` | B-tree | Pfeiler 1 — Mandanten-Scoping + Sichtbarkeit |
-| `farms` | `(plz)` | B-tree | PLZ-Filter (Finder) |
-| `farms` | `(status, plz)` `WHERE deleted_at IS NULL` | B-tree (partial) | öffentlicher Finder (nur `published`) |
-| `farms` | `(lat, lng)` `WHERE deleted_at IS NULL AND lat IS NOT NULL` | B-tree (partial) | Distanz/„in der Nähe" (Track B Karte; später GiST/PostGIS) |
-| `farms` | `categories` | GIN | Kategorie-Facetten-Filter |
-| `farms` | `(slug)` | UNIQUE | Deep-Link |
-| `products` | `(farm_id)` | B-tree | Hofladen-Auflistung |
-| `products` | `(org_id, category)` | B-tree | Kategorie-Listen je Mandant |
-| `products` | `(category, seasonal)` `WHERE deleted_at IS NULL` | B-tree (partial) | Saison-Radar |
-| `availability` | `(product_id) WHERE is_current AND deleted_at IS NULL` | UNIQUE (partial) | genau ein aktueller Satz |
-| `availability` | `(farm_id, status)` | B-tree | Finder-Verfügbarkeitsfacette |
-| `reservations` | `(org_id, status, created_at DESC)` | B-tree | Erzeuger-Dashboard / Owner-KPI |
-| `reservations` | `(farm_id, status)` | B-tree | Hof-Reservierungsliste |
-| `reservations` | `(buyer_id, created_at DESC)` `WHERE buyer_id IS NOT NULL` | B-tree (partial) | „Meine Reservierungen" |
-| `sb_payments` | `(org_id, status, created_at DESC)` | B-tree | Einnahmen-/Schwund-Dashboard |
-| `sb_payments` | `(stripe_payment_intent_id)` | UNIQUE | Idempotenz |
-| `sb_payments` | `(stripe_event_id)` | UNIQUE | Webhook-Replay-Schutz |
-| `audit_log` | `(org_id, created_at DESC)` | B-tree | Audit-Feed je Mandant |
-| `audit_log` | `(entity_type, entity_id)` | B-tree | Entity-Historie / Drilldown |
-| `waitlist` | `(product_id, status, queue_rank)` | B-tree | Nachrücker-Welle |
-| `waitlist` | `(coalesce(product_id,…), lower(contact))` `WHERE deleted_at IS NULL` | UNIQUE (partial) | Anti-Doppel |
-| `orgs` | `(slug)` / `(stripe_customer_id)` / `(stripe_connect_id)` | UNIQUE | Lookups |
+| `farms` | `farms_plz_idx` (0001) | `(plz)` | PLZ-Filter (Finder) |
+| `farms` | `farms_org_idx` (0001) | `(org_id)` | Mandanten-Scoping / RLS-Joins |
+| `farms` | `farms_active_idx` (0001) | `(deleted_at) WHERE deleted_at IS NULL` | aktive Höfe |
+| `products` | `products_farm_idx` (0001) | `(farm_id)` | Hofladen-Auflistung |
+| `products` | `products_cat_idx` (0001) | `(category)` | Kategorie-Filter |
+| `reservations` | `reservations_farm_idx` (0001) | `(farm_id)` | Hof-Reservierungsliste |
+| `reservations` | `reservations_status_idx` (0001) | `(status)` | Status-Filter |
+| `subscriptions` | `subscriptions_org_idx` (0002) | `(org_id)` | Abo je Mandant |
+| `subscriptions` | UNIQUE `stripe_subscription_id` (0002) | `(stripe_subscription_id)` | Stripe-Lookup/Idempotenz |
+| `sb_payments` | `sb_payments_org_idx` (0002) | `(org_id)` | Einnahmen je Mandant |
+| `sb_payments` | `sb_payments_farm_idx` (0002) | `(farm_id)` | Einnahmen je Stand |
+| `sb_payments` | `sb_payments_status_idx` (0002) | `(status)` | Status-Filter |
+| `org_members` | `org_members_user_idx` (0003) | `(user_id)` | Multi-Org-Lookup |
+| `org_locations` | `org_locations_org_idx` (0003) | `(org_id)` | Standorte je Org |
+| `org_locations` | `org_locations_plz_idx` (0003) | `(plz)` | Standort-PLZ |
+| `reviews` | `reviews_farm_idx` (0003) | `(farm_id)` | Bewertungen je Hof |
+| `bounties` | `bounties_status_idx` (0003) | `(status)` | offene Gesuche |
+| `bounties` | `bounties_plz_idx` (0003) | `(plz)` | Gesuch-PLZ |
+| `credits_ledger` | `credits_org_idx` (0003) | `(org_id)` | Guthaben je Org |
+| `farm_applications` | `farm_applications_status_idx` (0004) | `(status)` | Bewerbungs-Queue |
+| `farm_applications` | `farm_applications_plz_idx` (0004) | `(plz)` | Bewerbungs-PLZ |
+
+> **Nicht vorhanden (Stand 0004):** GIN-Index auf `farms.categories`, Geo-Index `(lat,lng)`, zusammengesetzte `(org_id,status,created_at)`-Indizes, `audit_log`-Indizes, `profiles`-Indizes. Diese sind in `ENTERPRISE_ARCHITECTURE.md` §3 als **Skalierungsausbau** (Stufe 300+) geplant, aber noch nicht migriert.
 
 ---
 
 ## 6 · Zustandsmaschine `reservations` (CORE_BUSINESS_STATE_MACHINES)
 
+Enum `reservation_status` = `requested | confirmed | picked_up | cancelled | expired` (0001). Es gibt **keinen** `ready`- oder `no_show`-Status.
+
 ```
-requested ──confirm(Erzeuger)──▶ confirmed ──mark_ready──▶ ready ──pickup──▶ picked_up
-   │                                │                         │
-   ├─cancel(Käufer/Erzeuger)─▶ cancelled ◀──cancel───────────┤
-   │                                                          │
-   └─TTL/Abholfenster verstrichen─▶ expired       no_show◀────┘ (Abholfenster ohne Abholung)
+requested ──confirm(Erzeuger)──▶ confirmed ──pickup(Erzeuger)──▶ picked_up
+   │                                │
+   ├─cancel(Käufer/Erzeuger)─▶ cancelled ◀──cancel─┤
+   │                                                │
+   └─Abholfenster+Karenz verstrichen─▶ expired ◀───┘
 ```
-- **Erlaubte Übergänge** werden in der Edge Function (`reservation-transition`) erzwungen, nicht im Client. Jeder Übergang → `audit_log` (`reason` Pflicht bei `cancelled`/`no_show`).
-- `requested → expired` per Cron-Edge-Job (Abholfenster + Karenz überschritten).
-- Nur Erzeuger der besitzenden Org oder Staff dürfen `confirmed/ready/picked_up/no_show` setzen; Käufer darf nur `requested → cancelled` (eigene Reservierung).
-- **Verfügbarkeitskopplung:** Bei `confirmed` darf `qty_estimate` des aktuellen `availability`-Satzes dekrementiert werden (optional, transaktional).
+- **Erlaubte Übergänge** werden serverseitig (Edge Function / Trigger) erzwungen, nicht im Client. Jeder Übergang → `audit_log` (`reason` Pflicht bei `cancelled`).
+- `requested → expired` und `confirmed → expired` per Cron-Edge-Job (Abholfenster + Karenz überschritten).
+- Nur Erzeuger der besitzenden Org (bzw. `staff`/`owner`) dürfen `confirmed`/`picked_up` setzen; Käufer darf nur stornieren.
+- **Verfügbarkeit:** liegt direkt als `products.availability` (Enum) — es gibt keinen separaten Verfügbarkeitssatz, der dekrementiert wird; Mengenführung ist nicht migriert. Vollständige Übergangstabelle: `docs/CORE_BUSINESS_STATE_MACHINES.md` §1.
 
 ---
 
@@ -427,102 +442,102 @@ requested ──confirm(Erzeuger)──▶ confirmed ──mark_ready──▶ r
 
 **Aktivierung für jede Tabelle:**
 ```sql
-alter table public.<t> enable row level security;
-alter table public.<t> force row level security;   -- gilt auch für Tabelleneigentümer
+alter table <t> enable row level security;
 ```
-Ohne passende Policy = kein Zugriff. Mutierende Schreibpfade mit erhöhten Rechten laufen über Edge Functions (service role umgeht RLS bewusst und kontrolliert).
+> **Hinweis:** Die Migrationen verwenden `enable row level security`; ein zusätzliches `force row level security` ist (Stand 0004) **nicht** gesetzt. Ohne passende Policy = kein Zugriff. `service_role` umgeht RLS systemseitig (Server/Edge-Funktionen). Die Policies fragen Identität **inline** ab (`select org_id from profiles where user_id = auth.uid()`) bzw. ab 0003 über `is_org_member(org_id)`.
 
 ### `orgs`
-| Aktion | Policy |
+| Aktion | Policy (real) |
 |---|---|
-| SELECT | `id = current_org_id() OR is_staff()` |
-| UPDATE | `id = current_org_id() AND current_role_kind() = 'erzeuger'` (nur eigene Org; sensible Felder `plan/stripe_*` nur service role) — `WITH CHECK` identisch |
-| INSERT/DELETE | nur service role (Org-Anlage via Onboarding-Edge-Function; Soft-Delete via Edge) |
+| ALL | **keine Policy** für anon/authenticated → nur `service_role` (Org-Anlage/Soft-Delete via Edge). |
 
 ### `profiles`
-| Aktion | Policy |
+| Aktion | Policy (real) |
 |---|---|
-| SELECT | `id = auth.uid() OR (org_id = current_org_id() AND current_role_kind() IN ('erzeuger','staff')) OR is_staff()` |
-| INSERT | `id = auth.uid()` (Self-Provisioning; Trigger setzt Default-Rolle) |
-| UPDATE | `id = auth.uid()` **mit** `WITH CHECK (role = (select role from profiles where id = auth.uid()))` → Selbst-Rollen-Eskalation blockiert; `role`/`org_id` nur via service role |
-| DELETE | nur service role (DSGVO-Löschpfad mit Audit) |
+| SELECT | `profiles_self_read`: `user_id = auth.uid()` (nur eigenes Profil). |
+| INSERT/UPDATE/DELETE | **keine Policy** → nur `service_role`. Schreiben von `role`/`org_id` ausschließlich serverseitig (verhindert Self-Promotion zu `staff`/`owner`). |
 
 ### `farms`
-| Aktion | Policy |
+| Aktion | Policy (real) |
 |---|---|
-| SELECT (öffentlich) | `deleted_at IS NULL AND status = 'published'` für `anon`/`authenticated` (Finder) |
-| SELECT (Erzeuger/Staff) | `org_id = current_org_id() OR is_staff()` (auch `draft`/`pending_review`) |
-| INSERT | `org_id = current_org_id() AND current_role_kind() = 'erzeuger'` |
-| UPDATE | `owns_farm(id) AND current_role_kind() = 'erzeuger'` (eigene Höfe) **oder** `is_staff()` (Verifizierung/Suspend); `WITH CHECK (org_id = current_org_id() OR is_staff())` verhindert Org-Wechsel |
-| DELETE | nur service role (Soft-Delete via Edge + Audit) |
+| SELECT (öffentlich) | `farms_public_read`: `deleted_at IS NULL` für `anon`/`authenticated` (Finder). **Kein `status='published'`-Filter** — Sichtbarkeit nur über Soft-Delete. |
+| ALL (Owner-Write) | `farms_owner_write` (0001): `org_id IN (select org_id from profiles where user_id = auth.uid())` — in 0003 gehoben auf `is_org_member(org_id)` (Multi-Org), `USING` + `WITH CHECK` identisch. |
 
 ### `products`
-| Aktion | Policy |
+| Aktion | Policy (real) |
 |---|---|
-| SELECT (öffentlich) | `deleted_at IS NULL AND farm_id IN (select id from farms where status='published' and deleted_at is null)` |
-| SELECT (Erzeuger/Staff) | `org_id = current_org_id() OR is_staff()` |
-| INSERT | `owns_farm(farm_id) AND current_role_kind() = 'erzeuger'` — `WITH CHECK (org_id = current_org_id())` |
-| UPDATE | `owns_farm(farm_id)` — `WITH CHECK (org_id = current_org_id())` (Org-Migration unmöglich) |
-| DELETE | nur service role |
-
-### `availability`
-| Aktion | Policy |
-|---|---|
-| SELECT (öffentlich) | `is_current AND deleted_at IS NULL AND farm_id IN (published farms)` |
-| SELECT (Erzeuger/Staff) | `org_id = current_org_id() OR is_staff()` (volle Historie) |
-| INSERT/UPDATE | `owns_farm(farm_id) AND current_role_kind() = 'erzeuger'` — `WITH CHECK (org_id = current_org_id())` |
-| DELETE | nur service role |
+| SELECT (öffentlich) | `products_public_read`: `EXISTS (select 1 from farms f where f.id = products.farm_id AND f.deleted_at IS NULL)`. |
+| ALL (Owner-Write) | `products_owner_write`: org-gebunden, in 0003 auf `is_org_member(org_id)` gehoben (`USING` + `WITH CHECK`). |
 
 ### `reservations`
-| Aktion | Policy |
+| Aktion | Policy (real) |
 |---|---|
-| SELECT | `buyer_id = auth.uid() OR (org_id = current_org_id() AND current_role_kind() IN ('erzeuger','staff')) OR is_staff()` (Käufer sieht eigene, Erzeuger die seines Hofes) |
-| INSERT | `org_id = (select org_id from farms where id = farm_id and status='published')` **und** (`buyer_id = auth.uid()` ODER `buyer_id IS NULL` Gast) — `WITH CHECK` setzt korrekten `org_id`; Pflichtfelder via Edge/Zod |
-| UPDATE | Käufer: nur eigene + nur `status='cancelled'` (Trigger erzwingt erlaubten Übergang). Erzeuger/Staff: `org_id = current_org_id() OR is_staff()`. `WITH CHECK` blockiert Org-Wechsel & illegale Übergänge |
-| DELETE | nur service role |
+| INSERT | `reservations_insert` für `anon`/`authenticated`: `EXISTS (select 1 from farms f where f.id = reservations.farm_id AND f.org_id = reservations.org_id AND f.deleted_at IS NULL)`. Gast-Reservierung erlaubt; **kein** `buyer_id`-Bezug. |
+| SELECT | `reservations_owner_read`: `org_id IN (eigene Orgs)` — 0001 via `profiles`, 0003 via `is_org_member(org_id)`. Käufer/Gast haben **keine** SELECT-Policy (Einsicht nur über Edge/Token). |
+| UPDATE/DELETE | **keine Policy** → nur `service_role` (Statusübergänge serverseitig). |
 
 ### `sb_payments`
-| Aktion | Policy |
+| Aktion | Policy (real) |
 |---|---|
-| SELECT | `buyer_id = auth.uid() OR (org_id = current_org_id() AND current_role_kind() IN ('erzeuger','staff')) OR is_staff()` |
-| INSERT/UPDATE/DELETE | **nur service role** (ausschließlich der Stripe-Webhook-Handler schreibt; idempotent, signaturgeprüft). Frontend rein lesend |
+| SELECT | `sb_payments_owner_read`: `org_id IN (eigene Orgs)` (0002 via `profiles`, 0003 via `is_org_member`). |
+| INSERT/UPDATE/DELETE | **keine Policy** → nur `service_role` (Stripe-Webhook-Handler, idempotent). Frontend rein lesend. |
 
-### `audit_log`
-| Aktion | Policy |
+### `subscriptions`
+| Aktion | Policy (real) |
 |---|---|
-| SELECT | `org_id = current_org_id() OR is_staff()` (Erzeuger sieht eigene Org-Historie, Staff alles) |
-| INSERT | service role (aus Edge Functions) **oder** über `SECURITY DEFINER`-Funktion `log_audit(...)` — App schreibt nie direkt |
-| UPDATE/DELETE | **keine Policy → unmöglich** (append-only, unabschaltbar) |
+| SELECT | `subscriptions_owner_read`: `org_id IN (eigene Orgs)` (0002 via `profiles`, 0003 via `is_org_member`). |
+| Schreiben | **keine Policy** → nur `service_role` (Stripe-Webhook). |
+
+### `audit_log` / `payment_events` / `credits_ledger`
+| Tabelle | Policy (real) |
+|---|---|
+| `audit_log` | **keine Policy** → nur `service_role` (RLS aktiviert; weder Lesen noch Schreiben für anon/authenticated). Append-only ergibt sich aus der Abwesenheit von UPDATE/DELETE-Zugriff. |
+| `payment_events` | **keine Policy** → nur `service_role` (Webhook-Idempotenz). |
+| `credits_ledger` | `credits_owner_read`: `is_org_member(org_id)` (lesen); Schreiben `service_role`. |
 
 ### `waitlist`
-| Aktion | Policy |
+| Aktion | Policy (real) |
 |---|---|
-| SELECT | `buyer_id = auth.uid() OR (org_id = current_org_id() AND current_role_kind() IN ('erzeuger','staff')) OR is_staff()` |
-| INSERT | öffentlich erlaubt **nur über Edge Function** (Turnstile + Zod + Anti-Doppel); direkte Tabellen-INSERTs nur `authenticated` mit `buyer_id = auth.uid()` und `WITH CHECK (status = 'queued')` |
-| UPDATE | Erzeuger/Staff der Org (Nachrücker-Welle: `queued→notified→…`); Käufer darf eigenen Eintrag `→ removed` |
-| DELETE | nur service role |
+| INSERT | `waitlist_insert` für `anon`/`authenticated`: `WITH CHECK (char_length(email) ≤ 320 AND char_length(plz) ≤ 16)`. |
+| SELECT/UPDATE/DELETE | **keine Policy** → nur `service_role` (Landing-Liste, keine Käufer-Einsicht). |
 
-> **Negativ-Erwartung (Pfeiler 6, qa-tester):** Org B liest mit RLS **0** Zeilen von Org A (kein 500), schreibt auf Org A = abgelehnt (403-Pfad). Käufer kann fremde Reservierung weder lesen noch ändern. `anon` sieht nur `published`-Höfe/Produkte/aktuelle Verfügbarkeit. Eskalation der eigenen `role` ist unmöglich.
+### `org_members` / `org_locations` / `reviews` / `bounties` (0003)
+| Tabelle | SELECT | Schreiben |
+|---|---|---|
+| `org_members` | `org_members_read`: `is_org_member(org_id)` | `service_role` |
+| `org_locations` | `org_locations_public_read`: `deleted_at IS NULL` (öffentlich) | `org_locations_owner_write`: `is_org_member(org_id)` (`USING`+`WITH CHECK`) |
+| `reviews` | `reviews_public_read`: `status='published'` | `reviews_insert` (anon/auth): `rating 1–5 AND verified=false AND status='published' AND (author_user_id IS NULL OR = auth.uid())`; `reviews_owner_moderate` (UPDATE): `is_org_member(org_id)` |
+| `bounties` | `bounties_public_read`: `status='open'` | `bounties_insert` (anon/auth): `char_length(title) 3–200 AND (author_user_id IS NULL OR = auth.uid())`; `bounties_author_manage` (UPDATE): `author_user_id = auth.uid()` |
+
+### `farm_applications` (0004)
+| Aktion | Policy (real) |
+|---|---|
+| INSERT (anon/auth) | `farm_applications_insert`: `char_length(name) 2–200 AND char_length(email) ≤ 320 AND plz ~ '^[0-9]{5}$'`. |
+| SELECT | `farm_applications_staff_read`: `EXISTS (select 1 from profiles p where p.user_id = auth.uid() AND p.role IN ('staff','owner'))`. |
+| UPDATE | `farm_applications_staff_update`: gleiche Staff/Owner-Prüfung; `WITH CHECK (status IN ('eingereicht','in_pruefung','angenommen','abgelehnt'))`. |
+
+> **Negativ-Erwartung (Pfeiler 6, qa-tester):** Org B liest mit RLS **0** Zeilen von Org A (kein 500), schreibt auf Org A = abgelehnt (`WITH CHECK`-Fehler). `anon` sieht nur nicht-gelöschte Höfe/Produkte/Standorte, veröffentlichte Reviews und offene Bounties. Eskalation der eigenen `role` ist unmöglich (kein Schreibpfad auf `profiles` außer `service_role`).
 
 ---
 
-## 8 · Beziehungen (Foreign Keys, Zusammenfassung)
+## 8 · Beziehungen (Foreign Keys, Zusammenfassung — Ist-Stand)
 
-- `auth.users` 1:1 `profiles`
-- `orgs` 1:N `profiles` (erzeuger/staff)
-- `orgs` 1:N `farms` · 1:N `products` · 1:N `availability` · 1:N `reservations` · 1:N `sb_payments` · 1:N `audit_log` · 1:N `waitlist`
-- `farms` 1:N `products` · 1:N `availability` · 1:N `reservations` · 1:N `sb_payments` · 1:N `waitlist`
-- `products` 1:N `availability` · 1:N `reservations` · 1:N `waitlist`
-- `profiles` (buyer) 1:N `reservations` · 1:N `sb_payments` · 1:N `waitlist`
-- `reservations` 0:1 `sb_payments` (Bezahlung einer Reservierung)
-- `profiles` (verified_by, staff) 1:N `farms` (Verifizierung)
+- `auth.users` 1:1 `profiles` (`profiles.user_id` PK/FK)
+- `orgs` 1:N `profiles` (`org_id`, ON DELETE SET NULL)
+- `orgs` 1:N `farms` · `products` · `reservations` · `sb_payments` · `subscriptions` · `org_members` · `org_locations` · `reviews` · `credits_ledger`
+- `farms` (text-PK) 1:N `products` · `reservations` · `sb_payments` · `reviews` · `org_locations` (`farm_id` nullable, SET NULL)
+- `products` (text-PK) 1:N `reservations` · `sb_payments` (`product_id` SET NULL)
+- `auth.users` 1:N `org_members` · `reviews.author_user_id` · `bounties.author_user_id` (SET NULL)
+- `reservations` 0:1 `reviews` (`reviews.reservation_id`, SET NULL)
+- `org_locations` 1:N `sb_payments` (`location_id`, SET NULL, 0003)
 
-**Konsistenz-Trigger** (alle `BEFORE INSERT/UPDATE`):
-1. `farms/products/availability/reservations/sb_payments/waitlist.org_id` muss zu `farm_id.org_id` passen (kein Cross-Org-Schmuggel).
-2. `set_updated_at()` auf jeder Tabelle mit `updated_at`.
-3. `availability`: neuer `is_current`-Satz → alter Satz `is_current=false`; `products.availability` spiegeln.
-4. `farms.categories` aus `products` neu berechnen.
-5. `reservations.unit_price_cents` aus `products.price_cents` snapshotten (BEFORE INSERT).
+> **Kein** `buyer_id`/`verified_by`/`sb_payment_id`-FK auf `reservations`; **keine** `availability`-Tabelle.
+
+**Trigger (real, Stand 0001–0003):**
+1. `set_updated_at()` als `BEFORE UPDATE` auf `farms`, `products`, `subscriptions`.
+2. `recompute_farm_reputation()` als `AFTER INSERT/UPDATE/DELETE` auf `reviews` → aktualisiert `farms.rating_avg/rating_count/reputation_grade`.
+
+> Trigger für `org_id`-Konsistenz (Cross-Org-Schutz), `farms.categories`-Neuberechnung aus `products` oder Preis-Snapshot existieren (Stand 0004) **nicht** — Cross-Org-Konsistenz wird über die RLS-`WITH CHECK`-Bedingungen und die Insert-`EXISTS`-Prüfungen erreicht, nicht über Trigger.
 
 ---
 
@@ -530,25 +545,21 @@ Ohne passende Policy = kein Zugriff. Mutierende Schreibpfade mit erhöhten Recht
 
 **Regeln (CLAUDE.md / AGENTS.md):** SQL nur als **neue** Migration unter `app/supabase/migrations/`, **additiv**, niemals destruktiv ohne Owner-Freigabe. Jede Tabelle ab Migration #1: `org_id`/Tenant · Zeitstempel · `deleted_at` · **RLS deny-by-default + Isolationstest** (Plattform- + Org-Isolation).
 
-| Migration | Inhalt | Reversibel? |
-|---|---|---|
-| `0001_init_enums_helpers.sql` | Enums (§2), Helper-Funktionen (§3), `set_updated_at`, `log_audit()` | ja (DROP) |
-| `0002_orgs_profiles.sql` | `orgs`, `profiles` (+ `auth.users`-Trigger `on_auth_user_created`), RLS, Indizes | ja |
-| `0003_farms_products.sql` | `farms`, `products` + Konsistenz-/`categories`-Trigger, RLS, Indizes | ja |
-| `0004_availability.sql` | `availability` + `is_current`-Trigger + Spiegelung, RLS, Index | ja |
-| `0005_reservations.sql` | `reservations` + Snapshot-/Transition-Trigger, RLS, Indizes | ja |
-| `0006_audit_log.sql` | `audit_log` (append-only), RLS, Indizes | ja |
-| `0007_waitlist.sql` | `waitlist` + Anti-Doppel-Index, RLS | ja |
-| `0008_sb_payments.sql` | `sb_payments` (USP) + Idempotenz-Indizes, RLS (nur service role schreibt) | ja |
-| `0009_seed_demo.sql` | **gekennzeichnete** Demo-Daten (siehe §10) — nur Dev/Staging | ja |
+**Tatsächlich vorhandene Migrationen (`app/supabase/migrations/`):**
 
-**Additive Konventionen:**
-- **Nur** `ADD COLUMN` / `CREATE INDEX CONCURRENTLY` / `ALTER TYPE … ADD VALUE` / neue Policy. Neue Spalten `NULL`-bar **oder** mit `DEFAULT` (kein Rewrite-Lock auf großen Tabellen).
-- Enum-Werte werden **angehängt**, nie umbenannt/entfernt (umbenennen = neuer Wert + Backfill + Deprecation).
-- Spalten-Entfernung erst nach Deprecation-Welle + Owner-Freigabe; bis dahin „tote" Spalte tolerieren.
-- Jede Migration hat eine dokumentierte Down-/Rollback-Strategie (keine Migration ohne Rollback — CLAUDE.md-Verbot).
-- **Reihenfolge ist FK-getrieben:** Enums/Helper → orgs → profiles → farms → products → availability → reservations → audit → waitlist → sb_payments.
-- `CREATE INDEX CONCURRENTLY` außerhalb von Transaktions-Migrationen für Live-Tabellen.
+| Migration | Inhalt (real) |
+|---|---|
+| `0001_core.sql` | Enums (`farm_type`, `product_category`, `availability_state`, `reservation_status`, `user_role`), `set_updated_at()`, Tabellen `orgs`, `profiles`, `farms`, `products`, `reservations`, `waitlist`, `audit_log`, Indizes, RLS deny-by-default + Policies. |
+| `0002_payments.sql` | Enums `payment_status`, `subscription_status`; Tabellen `subscriptions`, `sb_payments`, `payment_events`; `reservations` um `payment_method`/`payment_status` erweitert; RLS. |
+| `0003_marketplace.sql` | Funktion `is_org_member()`; Tabellen `org_members`, `org_locations`, `reviews` (+ Reputations-Trigger auf `farms`), `bounties`, `credits_ledger`; `sb_payments.location_id`; Owner-Policies auf `is_org_member()` gehoben. |
+| `0004_onboarding.sql` | Enum `application_status`; Tabelle `farm_applications`; RLS (Insert öffentlich, Lesen/Moderieren nur staff/owner). |
+
+**Additive Konventionen (CLAUDE.md/AGENTS.md):**
+- **Nur** `ADD COLUMN` / neuer Index / `ALTER TYPE … ADD VALUE` / neue Policy. Neue Spalten `NULL`-bar **oder** mit `DEFAULT`.
+- Enum-Werte werden **angehängt**, nie umbenannt/entfernt.
+- Spalten-Entfernung erst nach Deprecation-Welle + Owner-Freigabe.
+- Migrationen sind idempotent gehalten (`if not exists`, `do $$ … exception when duplicate_object`, `drop policy if exists … create policy`).
+- Ein dedizierter Seed-/Demo-Stand liegt **nicht** als nummerierte Migration unter `migrations/`, sondern als separates, idempotentes (`on conflict … do nothing`) SQL-Skript `app/supabase/seed.sql` (deckungsgleich mit dem Frontend-Fallback `app/src/lib/seed.ts`, je Hof eine eigene `org` als echte Isolationsbasis). Zusätzlich bündelt `app/supabase/setup_all.sql` die Migrationen für ein One-Shot-Setup (siehe §10).
 
 **Isolationstest als blockierendes Gate (devops/qa-tester):** Nach jeder DB-Migration läuft der Cross-Org-/Boundary-Test (zwei Orgs, je ein Erzeuger + Käufer; Assert: 0 Fremdzeilen lesend, Ablehnung schreibend, nur `published` für `anon`). Rot = kein Merge (`PHASEN.md` Isolations-Gate).
 
@@ -556,13 +567,11 @@ Ohne passende Policy = kein Zugriff. Mutierende Schreibpfade mit erhöhten Recht
 
 ## 10 · Seed-Hinweis
 
-- **Wahrheit der Form:** `app/src/lib/seed.ts` (`SEED_FARMS`) definiert bereits realistische Höfe + Produkte; deren Struktur = diese Tabellen. Der Seed (`0009_seed_demo.sql`) übersetzt diese Datensätze nach Postgres:
-  - 1 Demo-Org (`plan='demo'`, `slug='demo-hofverbund'`).
-  - Höfe aus `SEED_FARMS` → `farms` (`status='published'`, `is_self_service` bei SB-tauglichen Höfen `true`).
-  - Produkte → `products` (`price` EUR → `price_cents`), plus je Produkt **ein** `availability`-Satz (`is_current=true`) gemäß `Product.availability`.
+- **Wahrheit der Form:** `app/src/lib/seed.ts` (`SEED_FARMS`) definiert realistische Höfe + Produkte; deren Struktur entspricht `Farm`/`Product` aus `types.ts` und damit den Tabellen `farms`/`products`. Für Postgres existiert das deckungsgleiche, idempotente SQL-Skript `app/supabase/seed.sql` (kein nummerierter Migrationsschritt unter `migrations/`, sondern separat ausführbar; je Hof eine eigene `org`). Der Frontend-Fallback bleibt parallel aktiv (`data.ts` schaltet auf Supabase um, sobald `VITE_SUPABASE_*` gesetzt sind). Beim DB-Seed gilt:
+  - Höfe aus `SEED_FARMS` → `farms` (`id` = Slug, `verified=true` bei freigeschalteten Höfen).
+  - Produkte → `products` mit `price` direkt als `numeric(10,2)` (keine Cent-Umrechnung) und `availability` (Enum `availability_state`) gemäß `Product.availability`.
   - **Keine** echten `sb_payments`/`reservations` im Seed (Geldfluss nur über echten Live-Test, CLAUDE.md „kein Fake-Data in Prod-UI").
-- **Kennzeichnung (Pflicht):** Demo-Daten klar markiert (`orgs.name` mit „(Demo)" bzw. Flag), nur in Dev/Staging eingespielt — **nie** in Produktion (`WAVE_15` Demo/Onboarding-Regel). Idempotenter Seed via `ON CONFLICT (slug) DO NOTHING`.
-- **Landing-Warteliste:** Für den Marketing-Go-Live (ADR 0001) genügt initial `orgs`-frei nutzbare `waitlist` (`org_id NULL`, `source='landing'`), befüllt ausschließlich über die Turnstile-geschützte Edge Function — kein Seed nötig.
+- **Landing-Warteliste:** `waitlist` (`source='landing'`) ist die Go-Live-Interessentenliste; Insert öffentlich (anon), Lesen nur `service_role`. Kein Seed nötig.
 - **Reproduzierbarkeit:** `supabase db reset` (lokal) spielt Migrationen + Seed deterministisch ein; der Data-Layer (`app/src/lib/data.ts`) schaltet automatisch von Seed-Fallback auf Supabase um, sobald `VITE_SUPABASE_*` gesetzt ist (ADR 0002 — Umstieg = reine Konfiguration).
 
 ---
@@ -571,10 +580,10 @@ Ohne passende Policy = kein Zugriff. Mutierende Schreibpfade mit erhöhten Recht
 
 | Pfeiler | Beleg im Modell |
 |---|---|
-| 1 Org-Boundary | `org_id NOT NULL` + RLS `current_org_id()`/`owns_farm()`; fremde Org = 0 Zeilen / 403, nie 200 mit Fremddaten |
-| 2 Zero-State | leere `products`/`availability` → leere Arrays; `availability_status='out'` statt Fehler |
-| 3 Scope-Transparenz | Responses tragen `org`/`plz`/`status`-Kontext; `valid_from/valid_to` zeigt Datenstand |
-| 4 RBAC | `role_kind` (kaeufer/erzeuger/staff) + Policies je Rolle; Plan-Locks über `orgs.plan` (serverseitig) |
-| 5 Audit | `audit_log` append-only, `reason` Pflicht bei kritischen Aktionen, unabschaltbar (kein UPDATE/DELETE) |
-| 6 Testpflicht | Isolations-/Boundary-Tests als Migrations-Gate (§9) |
-| 7 Drilldown-Integrität | Deep-Links über `farms.slug`/`entity_id`; Policies verhindern org-fremde Kontextbildung |
+| 1 Org-Boundary | `org_id NOT NULL` + RLS via `profiles`-Sub-Select / `is_org_member()`; fremde Org = 0 Zeilen / 403, nie 200 mit Fremddaten |
+| 2 Zero-State | leere `products` → leere Arrays; `availability='out'` statt Fehler |
+| 3 Scope-Transparenz | Responses tragen `org`/`plz`-Kontext; `created_at` zeigt Datenstand |
+| 4 RBAC | `user_role` (kaeufer/erzeuger/staff/owner) + Policies je Rolle; Plan über `subscriptions.plan` (serverseitig) |
+| 5 Audit | `audit_log` nur via `service_role`, `reason`-Feld bei kritischen Aktionen, append-only (kein UPDATE/DELETE-Zugriff) |
+| 6 Testpflicht | Isolations-/Boundary-Tests als Gate (§9) |
+| 7 Drilldown-Integrität | Deep-Links über `farms.id` (Slug)/`entity_id`; Policies verhindern org-fremde Kontextbildung |

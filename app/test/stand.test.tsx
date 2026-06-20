@@ -27,4 +27,19 @@ describe('StandPayPage (SB-Korb)', () => {
     fireEvent.click(Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((b) => /sicher bezahlen/i.test(b.textContent || ''))!)
     await waitFor(() => expect(container.querySelector('.note--info')).toBeTruthy())
   })
+
+  it('freiwilliger Unterstützungsbeitrag erhöht den Gesamtbetrag (eigener Posten)', async () => {
+    const { container } = renderStand()
+    await waitFor(() => expect(container.querySelectorAll('.basket-row').length).toBeGreaterThan(0))
+    fireEvent.click(Array.from(container.querySelectorAll<HTMLButtonElement>('.stepper button')).find((b) => b.textContent === '+')!)
+    // ohne Support: kein Gesamt-/Support-Posten
+    expect(container.querySelector('.pay-total--grand')).toBeFalsy()
+    // freien Betrag eintragen
+    const supportInput = container.querySelector<HTMLInputElement>('.support__custom')!
+    fireEvent.change(supportInput, { target: { value: '1.5' } })
+    await waitFor(() => expect(container.querySelector('.pay-total--grand')).toBeTruthy())
+    // Bezahlen-Button trägt den Gesamtbetrag (Ware + Unterstützung)
+    const payBtn = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((b) => /sicher bezahlen/i.test(b.textContent || ''))!
+    expect(payBtn.textContent).toMatch(/€/)
+  })
 })

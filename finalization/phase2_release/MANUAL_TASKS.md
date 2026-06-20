@@ -130,7 +130,7 @@ Diese Datei listet **ausschließlich** die Schritte, die der **Owner selbst** du
 - [ ] **Support-/Antwort-Adresse** einrichten (z. B. `hallo@…` / `support@…`).
 - [ ] **Zustellbarkeit testen** (Testmail an Gmail/Outlook, Header prüfen: SPF/DKIM/DMARC = pass).
 
-**Was Claude liefert:** DNS-Record-Templates + Provider-Auswahlhilfe (`docs/operations/OPERATIONS_RUNBOOK.md` / `docs/DEPLOYMENT.md` Abschnitt 7) sowie die Mail-Provider-Anbindung im Code (`app/supabase/functions/_shared/email.ts`).
+**Was Claude liefert:** DNS-Record-Templates + Provider-Auswahlhilfe (`docs/engineering/OPERATIONS_RUNBOOK.md` / `docs/DEPLOYMENT.md` Abschnitt 7) sowie die Mail-Provider-Anbindung im Code (`app/supabase/functions/_shared/email.ts`).
 **Owner-Beleg für Gate:** Zone aktiv · TLS „Full (strict)" + HSTS · SPF/DKIM/DMARC = pass · Testmail zugestellt.
 
 ---

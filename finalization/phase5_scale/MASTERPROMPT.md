@@ -96,7 +96,7 @@ Konkret in dieser Phase (je nach gewähltem Baustein/Stufe — **immer nur einer
 | `app/supabase/functions/{create-checkout,stripe-webhook}` + `_shared/{supabaseAdmin,cors,stripe,email}.ts` | EIN signaturgeprüfter, idempotenter Webhook (Geldfluss-Wahrheit); `service_role` **nur** in Edge; Resend-Mail-Renderer für Quittung. Phase 5 misst Idempotenz/Quittung, baut keinen zweiten Pfad. |
 | `app/src/lib/{data,payments,supabase,types,geo,seed}.ts` (Dual-Source Seed↔Supabase, `isSupabaseConfigured`, snake↔camel an der Grenze, Port **5409**) | Mess-/Last-Setup nutzt **diese** Dual-Source-Schicht; ohne Account synthetischer Stand klar gekennzeichnet, kein toter Pfad. |
 | `app/.env.example` (nur `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`) | **Alle** weiteren Secrets (Stripe/Resend/Turnstile/Connect/Sentry) sind **Function-/CF-Secrets**, niemals `VITE_`. |
-| `app/package.json` (Scripts `dev/build (tsc --noEmit && vite build)/preview/typecheck`; **noch kein Test-Runner**) | Feinphase **O** führt den offiziellen Test-Runner ein (Deno-Tests für SQL/Edge + Vitest Frontend). Bis dahin: `npm run build` / `npm run typecheck` (+ `supabase db reset` für Migrationen) als Verifikation. |
+| `app/package.json` (Scripts `dev/build (tsc --noEmit && vite build)/preview/typecheck/test (vitest run)/test:watch`; **Vitest-Runner + `@vitest/coverage-v8` vorhanden**) | Feinphase **O** härtet den vorhandenen Vitest-Runner (Frontend) und ergänzt Deno-Tests für SQL/Edge. Verifikation laufend: `npm run typecheck` + `npm test` + `npm run build` (+ `supabase db reset` für Migrationen). |
 
 > **Stop-Regel-Check:** `orgs` / `audit_log` / `is_org_member` / `sb_payments` / `payment_events` / die Edge-Funktionen existieren real → kein „API/Service nicht gefunden". **Offene Owner-Gates** (Account/Kosten/Vertrag — **nicht** Teil der lokalen Phasen): Stripe Live + Connect + Price-IDs + SEPA/Tax · Resend-/SMTP-Domain (SPF/DKIM/DMARC) · Supabase-EU-Projekt + Domain · Cloudflare Pages/Turnstile/WAF · Sentry-DSN. Siehe `finalization/phase5_scale/MANUAL_TASKS.md` (falls vorhanden; sonst dort dokumentieren).
 
@@ -185,7 +185,7 @@ Phase 5 berührt **echtes Geld (zahlende Kunden), Plattformkosten und irreversib
 
 Ausführen, Output zeigen — keine kosmetische Fertigmeldung:
 
-- `npm run build` (tsc strict + vite) **grün** — Auszug zeigen. (Ab Feinphase O zusätzlich der offizielle Test-Runner: Deno-Tests für SQL/Edge + Vitest Frontend; bis dahin `npm run typecheck` + `supabase db reset` für Migrationen.)
+- `npm run build` (tsc strict + vite) **grün** + `npm test` (Vitest) **grün** — Auszug zeigen. (Feinphase O ergänzt zusätzlich Deno-Tests für SQL/Edge; für Migrationen `supabase db reset`.)
 - **Performance-Beweis (Pflicht je Stufe):** `EXPLAIN (ANALYZE)` der heißen Pfade (Finder/Detail/SB-Report/Owner-KPI) **ohne Seq-Scan** auf großen Tabellen; gemessenes p95 ≤ Budget (Soll vs. Ist mit Dump); Edge-Cache-Hit-Rate für anonymen Katalog; keine N+1 (Keyset/Pagination).
 - **Isolations-Negativtest (Pflicht je Stufe):** fremde Org / fremde Rolle → **403 / 0 Zeilen**, nie 200 mit Fremddaten; MV/RPC/Cache leckt nicht (security-definer-RPC `auth.uid()`-gebunden).
 - **Geldfluss-Beweis (falls Geldfluss-Dimension):** Webhook-Idempotenz (doppeltes `event.id` → ein Effekt über `payment_events`); Quittung erzeugt; Connect-Payout (bei SB) belegt; `audit_log`-Eintrag vorhanden, PII maskiert.

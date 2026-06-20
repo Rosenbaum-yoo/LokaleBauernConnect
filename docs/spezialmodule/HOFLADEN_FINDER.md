@@ -27,7 +27,7 @@ Der Hofladen-Finder ist der **erste Touchpoint** der Käuferseite. Er beantworte
 ### 0.3 Out-of-Scope (bewusst woanders)
 | Nicht hier | Wo stattdessen |
 |---|---|
-| Interaktive Karte (Leaflet/MapLibre + OSM, Pins, Cluster) | **Phase 4 Track B** — siehe §7 „Karten-Roadmap" (geplant, Schnittstelle hier vordefiniert) |
+| Interaktive Karte (Leaflet + OSM, Pins) | **live** als zweite Ansicht „Liste ⇄ Karte" (`app/src/components/FarmMap.tsx`, react-leaflet); Detail-Roadmap (Clustering, Boundingbox) siehe §7 |
 | Erzeuger-Selbstpflege der Verfügbarkeit | `docs/spezialmodule/PRODUKTVERFUEGBARKEIT.md` |
 | Reservierungs-Lebenszyklus / Statusmaschine | `docs/spezialmodule/RESERVIERUNG_ABHOLUNG.md` + `docs/CORE_BUSINESS_STATE_MACHINES.md` |
 | Saison-Logik & Benachrichtigungen | `docs/spezialmodule/SAISON_RADAR.md` |
@@ -229,18 +229,16 @@ Jeder interaktive Zustand ist real auslösbar und sichtbar; kein TODO, kein tote
 
 ---
 
-## 7 · Karten-Roadmap (Phase 4 Track B — geplant, Schnittstelle vordefiniert)
+## 7 · Karte (live) & Roadmap
 
-**Ziel:** interaktive Karte als zweite, gleichwertige Ergebnis-Ansicht („Liste ⇄ Karte") — nicht als Ersatz.
+**Ist-Stand (live):** Die interaktive Karte ist als zweite, gleichwertige Ergebnis-Ansicht implementiert — Umschalter „Liste ⇄ Karte" in `FinderPage` (`view`-State), Karte gerendert von `app/src/components/FarmMap.tsx`. Sie teilt den Filter-State mit der Liste; ein Pin/Popup öffnet `setSelected(farm)` → denselben `FarmDrawer` (keine Parallelkomponente).
 
-| Aspekt | Entscheidung / Plan |
+| Aspekt | Ist / Plan |
 |---|---|
-| **Engine** | **MapLibre GL JS** (bevorzugt, vektorbasiert, lizenzfrei) oder **Leaflet** (leichter, Raster) — beide mit **OpenStreetMap**. Auswahl als ADR (`.claude/memory/decisions/`) festzuhalten. |
-| **Tiles** | OSM-konforme Quelle / selbst-gehostete bzw. Cloudflare-gecachte Vektor-Tiles; **Attribution Pflicht** (OSM-Lizenz). Kein proprietärer Map-Key im Client. |
-| **Daten** | identische `Farm[]`-Quelle; Pins aus `lat`/`lng`. Bei vielen Höfen **Clustering**; Boundingbox-Read über Edge Function (Index `farms_plz_idx` + geo). |
-| **„In der Nähe"** | optional Geolocation-API (Browser, mit Einwilligung) statt PLZ → Zentroid → Haversine-Ranking bleibt unverändert nutzbar. |
-| **Interaktion** | Pin-Klick öffnet **denselben** `FarmDrawer` (Wiederverwendung, keine Parallelkomponente). Liste/Karte teilen Filter-State. |
-| **Schnittstelle heute** | `FarmFilter` (erweiterbar um `radiusKm`/Boundingbox), `lat`/`lng` bereits im Modell und in jeder Karte vorhanden — die Karte ist **additiv**, ohne Bruch der bestehenden Logik. |
+| **Engine** | **live: Leaflet + react-leaflet** (`leaflet`, `react-leaflet` als Dependencies in `app/package.json`), Raster-Tiles via `TileLayer` (OpenStreetMap, Attribution Pflicht). Vektor/MapLibre bleibt optionale spätere Entscheidung (ADR). |
+| **Daten** | identische `Farm[]`-Quelle (`shown`); Pins aus `lat`/`lng`. Geplant bei vielen Höfen: **Clustering** + Boundingbox-Read über Edge Function (Index `farms_plz_idx` + geo). |
+| **„In der Nähe"** | heute PLZ → Zentroid → Haversine-Ranking; optional Geolocation-API (Browser, mit Einwilligung) als spätere Ergänzung. |
+| **Schnittstelle** | `FarmFilter` (erweiterbar um `radiusKm`/Boundingbox); `lat`/`lng` im Modell und in jeder Karte vorhanden — Erweiterungen additiv, ohne Bruch. |
 | **Disclaimer** | Standort-/Distanzangaben sind Richtwerte; Vermittler-Hinweis bleibt sichtbar. |
 
 ---
@@ -283,15 +281,15 @@ Jeder interaktive Zustand ist real auslösbar und sichtbar; kein TODO, kein tote
 
 ## 9 · Tests
 
-> **Runner-Realität (Stand heute):** Das Projekt hat noch **kein** Test-Runner-Setup in `app/package.json` (`build` = `tsc --noEmit && vite build`). Diese Sektion ist die **verbindliche Test-Spezifikation** für WAVE_12 (QA). Empfohlenes Setup: **Vitest** (Unit/Logik) + **@testing-library/react** (Komponenten) + **Playwright** (E2E), als devDependencies, Skripte `test` / `test:e2e`. Tests gehören neben den Code (`app/src/**/*.test.ts(x)`) bzw. unter `app/e2e/`. Pfadauflösung in Tests stets relativ zur Testdatei (kein `process.cwd()`-Drift). **Test-Integrität (§0.9): Code an Tests anpassen, nie Assertions zurechtbiegen.**
+> **Runner-Realität (Stand heute):** Das Projekt nutzt **Vitest** + **@testing-library/react** + **jsdom** (devDependencies in `app/package.json`); Skripte `test` = `vitest run`, `test:watch` = `vitest`, `build` = `tsc --noEmit && vite build` (Build enthält **keine** Tests — separat ausführen). Die real existierenden Tests liegen unter **`app/test/`** (u. a. `geo.test.ts`, `data.test.ts`, `finder.test.tsx`, `finder-flow.test.tsx`, `availabilitybadge.test.tsx`, `season.test.ts`). **E2E mit Playwright ist noch nicht eingerichtet** (kein `@playwright/test`); die unten genannten `e2e/*.spec.ts` sind Soll-Spezifikation. Pfadauflösung in Tests stets relativ zur Testdatei (kein `process.cwd()`-Drift). **Test-Integrität (§0.9): Code an Tests anpassen, nie Assertions zurechtbiegen.**
 
-### 9.1 Unit — Geo/Distanz (`app/src/lib/geo.test.ts`)
+### 9.1 Unit — Geo/Distanz (`app/test/geo.test.ts`)
 - `haversine`: `d(x,x)=0`; Symmetrie `d(a,b)=d(b,a)`; bekannte Anker plausibel (Osnabrück↔Münster in erwarteter Größenordnung); Clamp gegen FP-Drift (kein `NaN` bei identischen Punkten).
 - `distanceFromPlz`: bekannte PLZ → endliche, auf 0,1 gerundete Zahl; unbekannte PLZ → `null`.
 - `isValidPlz`: `'49074'`→true; `'4907'`/`'490745'`/`'4907a'`/`''`→false.
 - `centroidForPlz`: bekannt → Tupel, unbekannt → `null`.
 
-### 9.2 Unit — Filter/Ranking (`app/src/lib/data.test.ts`)
+### 9.2 Unit — Filter/Ranking (`app/test/data.test.ts`)
 - **Kategorie:** `{category:'Honig'}` liefert nur Höfe mit `'Honig'`; `{category:'all'}` alle.
 - **Distanz-Ranking:** mit bekannter PLZ + `sort:'distance'` ⇒ Liste monoton steigend nach `distanceKm`.
 - **Name-Ranking:** `sort:'name'` ⇒ alphabetisch (Umlaute korrekt einsortiert).
@@ -299,13 +297,13 @@ Jeder interaktive Zustand ist real auslösbar und sichtbar; kein TODO, kein tote
 - **Zero-State-Filter:** Kategorie ohne Treffer ⇒ leeres Array (kein Wurf).
 - **Stabilität:** gleicher Filter ⇒ identische Reihenfolge (Determinismus).
 
-### 9.3 Komponente (`app/src/components/*.test.tsx`)
+### 9.3 Komponente (`app/test/*.test.tsx` — z. B. `finder.test.tsx`, `availabilitybadge.test.tsx`)
 - **FarmCard:** rendert Name/Adresse; Distanz nur bei `distanceKm != null`; `Enter`/`Space` und Klick lösen `onOpen(farm)` aus; `aria-label` korrekt.
 - **AvailabilityBadge:** jedes Enum → korrektes Label + Klasse; Default-Label = Status-Text.
 - **FinderPage:** Skeleton während Laden → danach Grid; 0 Treffer → Zero-State-Text; unbekannte PLZ → Hinweiszeile; PLZ-Eingabe filtert Nicht-Ziffern.
 - **FarmDrawer:** `out`-Produkte fehlen in der Produkt-Auswahl; leerer Bestand → „Aktuell ist nichts verfügbar."; `Escape` schließt.
 
-### 9.4 Integration — Datenquelle (`app/src/lib/data.integration.test.ts`)
+### 9.4 Integration — Datenquelle (`app/test/data.test.ts` / `app/test/data-mutations.test.ts`)
 - **Seed-Pfad:** ohne Supabase-Env ⇒ `listFarms` liefert `SEED_FARMS` gefiltert/sortiert.
 - **Supabase-Fehler ⇒ Fallback:** gemockter `from().select()`-Fehler ⇒ Rückfall auf Seed (kein Wurf), `console.warn` ausgelöst.
 - **Mapping:** `mapFarm` übersetzt `snake_case`-Zeile (inkl. eingebetteter `products`) korrekt auf den `Farm`-Typ.
@@ -316,7 +314,7 @@ Jeder interaktive Zustand ist real auslösbar und sichtbar; kein TODO, kein tote
 - **Write-Sperre (deny-by-default):** `anon` `INSERT/UPDATE` auf `farms`/`products` ⇒ verweigert.
 - **Cross-Org:** Erzeuger A kann Hof von Org B **nicht** schreiben (`farms_owner_write` greift). *(Kein grüner Merge ohne diesen Isolationstest — `AGENTS.md`.)*
 
-### 9.6 E2E (`app/e2e/finder.spec.ts`, Playwright)
+### 9.6 E2E (`app/e2e/finder.spec.ts`, Playwright — Soll, noch nicht eingerichtet; heute via `app/test/finder-flow.test.tsx` abgedeckt)
 - Käufer öffnet Finder (anonym) → gibt bekannte PLZ ein → sieht distanz-sortierte Liste mit „… km".
 - Wählt Kategorie → Liste filtert → wählt eine Karte (Tastatur) → Drawer öffnet → reserviert verfügbares Produkt → Bestätigung sichtbar.
 - Unbekannte PLZ → Hinweistext erscheint, Liste alphabetisch.

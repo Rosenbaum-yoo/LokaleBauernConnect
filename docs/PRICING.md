@@ -1,247 +1,186 @@
-# PRICING — Preismodell LokaleBauernConnect (Erzeuger-Abo · Premium-Listing · SB-Transaktionsgebühr)
+# Preise & Gebühren — LokaleBauernConnect
 
-> **Kanonisches Pricing-Dokument** der Plattform. Nur die Gliederung folgt dem Imperium-Pricing-Blueprint; sämtliche Inhalte — Pläne, Gebührenmodell, Entitlements, SB-Transaktionslogik — sind originär auf die **Hof-Domäne** und den Imperium-Stack (**Supabase/Cloudflare/Stripe**) geschrieben.
+> **Über 94 % bleiben beim Hof.** Wir verdienen nur mit, wenn ein Hof über die Plattform verkauft — keine versteckten Kosten, kein Pflichtabo, keine Listengebühr.
+
+> **Öffentlich orientierte Preis- und Gebührendarstellung.** Dieses Dokument erklärt in Klartext, was Käufer:innen zahlen, was Höfe zahlen, wie die optionale Premium-Mitgliedschaft und die Status-Stufen die Gebühr senken — mit Beispiel-Rechnungen und vollständigen Gesamtpreis-Hinweisen nach Preisangabenverordnung (PAngV).
 >
-> **Bezug:** `CLAUDE.md` (§0-Direktive 3 Wirtschaftlichkeit · 7 Produktionspfeiler · Commercial-/Stop-Regeln), `PHASEN.md` (WAVE_09 Billing · Phase 4 Track A SB-Bezahlung · Phase 5 Gate 10), `MASTER_INDEX.md` (4 · Commercial & Billing), `docs/spezialmodule/SB_BEZAHLUNG_USP.md` (USP-Mechanik, §7 Gebührenmodell), `docs/COMPLIANCE_MODEL.md` (Vermittler-Position · Subprozessor Stripe · Aufbewahrung), `docs/launch/B_rechtstexte/agb.md` (§6 SB-Gebühr · §10 Tarife · §16 Laufzeit/Kündigung), `docs/ROLE_AND_PERMISSION_MODEL.md` (Käufer/Erzeuger/Staff · Plan-Locks), `docs/SUBSCRIPTION_LIFECYCLE.md` (geplant), `docs/STRIPE-SETUP.md` (geplant), `docs/COMMERCIAL_SOURCE_OF_TRUTH.md` (geplant).
+> **Single Source of Truth:** Die rechnerische Wahrheit lebt **serverseitig** im Code-Modul `app/src/lib/fees.ts` (kanonische Gebührenformel) und ist in `docs/COMMERCIAL_SOURCE_OF_TRUTH.md` gespiegelt. Diese Datei ist die **menschenlesbare, verkaufsorientierte** Sicht. Bei Konflikt gilt der serverseitig durchgesetzte Wert; diese Datei wird dann nachgezogen.
 >
-> **Quelle der Wahrheit:** Entitlements und Preise sind **serverseitig** verankert (`orgs.plan`, Edge-Function-Auflösung, Stripe als Abrechnungs-Backend) — diese Datei ist die **menschenlesbare kommerzielle Spezifikation**, nicht die technische Konfig. Bei Konflikt gilt der serverseitig durchgesetzte Zustand; diese Datei wird dann nachgezogen.
+> **Status der Zahlen:** Alle konkreten Prozentsätze und Eurobeträge in diesem Dokument sind **Empfohlen — Owner-Freigabe ausstehend** (Preise/Geld = Owner-Entscheidung gemäß `CLAUDE.md` Commercial-/Stop-Regel). Sie gelten erst nach ausdrücklicher Freigabe und werden zugleich im Code (`fees.ts`) und in den Rechtstexten (`agb.md`) verbindlich.
 
 ---
 
-## 0 · Pricing-Philosophie — bewusst schlank (gesellschaftlicher Nutzen vor Marge)
+## 1 · Das Versprechen in einem Satz
 
-LokaleBauernConnect ist **Welle 1, Klasse C** des ConnectCore-Imperiums: Cashflow-Schnellstarter mit **hohem gesellschaftlichem Nutzen** (kurze Wege, faire Margen für Höfe, weniger Lebensmittelverschwendung, Belebung des ländlichen Raums). Das Preismodell folgt daraus drei Leitsätzen — sie sind verbindlich und gehen jeder Tarif-Detailentscheidung voraus:
-
-1. **Niedrige Einstiegshürde für Höfe.** Ein Hof darf **kostenlos sichtbar** werden und erste Käufer gewinnen, bevor Geld fließt. Sichtbarkeit eines kleinen Familienbetriebs darf nie an einer Monatsgebühr scheitern — das würde die Mission untergraben. Der Free-/`demo`-Pfad ist kein Trick, sondern Programm.
-2. **Käufer zahlen nie für den Zugang.** Suche, Hofladen-Finder, Verfügbarkeit, Reservierung, Saison-Radar sind für Käufer **dauerhaft kostenlos**. Einzige käuferbezogene Zahlung ist der Warenwert an den Hof; eine etwaige SB-Transaktionsgebühr trägt im Default-Pfad der Hof aus seinem Netto (§3), nicht der Käufer. Das ist Pflicht aus der Vermittler-Rolle und der Mission, regionale Lebensmittel **zugänglicher** zu machen — nicht teurer.
-3. **Schlanke, ehrliche Stufen statt Feature-Verknappung.** Wenige Stufen, klar begründet. Wir **verknappen keine sinnvollen Grundfunktionen** künstlich, um Upgrades zu erzwingen. Höhere Stufen liefern echten Mehrwert (Reichweite, Self-Service-Tiefe, reduzierte SB-Gebühr, Support-SLA) — nicht das Entsperren von Selbstverständlichkeiten.
-
-> **Wirtschaftlichkeit ohne Verschwendung (§0-Direktive 3):** „Schlank" heißt **nicht** „kostenlos für den Owner". Es gibt **zwei** komplementäre Geldflüsse: (a) das **wiederkehrende Erzeuger-Abo** (planbar, MRR) und (b) die **nutzungsbasierte SB-Transaktionsgebühr** (skaliert linear mit dem Abverkauf an unbemannten Ständen, über alle Höfe). Beide Muster sind **imperiumsweit wiederverwendbar** — jede ConnectCore-Tochter mit physischem Abverkauf am unbemannten Punkt erbt sie. Skalierung 10→300→3000 Höfe ist mitgedacht: das Modell trägt vom ersten Hof bis zur Region, ohne Re-Pricing.
+LokaleBauernConnect **vermittelt** den Kontakt zwischen dir und regionalen Höfen — wir verkaufen nicht selbst und beraten nicht. Bezahlst du über die Plattform (online reserviert oder am unbemannten SB-Hofladen per QR-Code), kümmern wir uns um die **sichere bargeldlose Bezahlung**. Dafür behalten wir eine kleine, transparente Gebühr ein. **Der Warenwert geht direkt an den Hof.**
 
 ---
 
-## 1 · Geldfluss-Architektur im Überblick
+## 2 · Was Käufer:innen zahlen
 
-| Geldfluss | Wer zahlt | An wen | Mechanik | Status |
-|---|---|---|---|---|
-| **Erzeuger-Abo** (wiederkehrend) | Erzeuger (`org`) | Plattform | Stripe-Subscription auf `orgs.plan` → Webhook → Entitlement serverseitig | `PHASEN.md` WAVE_09 |
-| **SB-Transaktionsgebühr** (nutzungsbasiert) | Hof (aus Netto, Default) | Plattform | Stripe Connect **Destination Charge** mit `application_fee_amount` = `platform_fee_cents` | Phase 4 Track A |
-| **Warenwert** (Kaufpreis) | Käufer | **Hof** (nicht Plattform) | Connect `transfer_data.destination = orgs.stripe_connect_id`; Plattform ist nur Anbindung | Phase 4 Track A |
+**Die Plattform nutzen kostet dich nichts.** Suche, Hofladen-Finder, Karte, Produktverfügbarkeit, Reservierung und der Saison-Radar sind und bleiben für Käufer:innen **dauerhaft kostenlos**. Es gibt kein Käufer-Abo und keine Anmeldegebühr.
 
-**Vermittler-Grundsatz (nicht verhandelbar, `agb.md` §6/§9, `SB_BEZAHLUNG_USP.md` §0):** Der Warenwert fließt **über Stripe Connect unmittelbar an das Hof-Konto**. Die Plattform ist Zahlungsanbindung/Vermittler, **nicht** Verkäufer und **nicht** Empfänger des Kaufpreises; sie behält ausschließlich die konfigurierte Plattformgebühr. Es besteht **kein plattformeigenes Verwahrkonto** im Eigenverkauf (keine Treuhand-/E-Geld-Lizenzfrage durch Saldenhaltung). Die Quittung weist stets den **Hof als Leistungserbringer** und die Plattform als Vermittler aus.
+Beim **Kauf über die Plattform** kommt eine kleine Service-Gebühr hinzu:
 
----
+| Posten | Käufer-Gebühr |
+|---|---|
+| **Service-Gebühr je Kauf** | **1 %** des Warenwerts · *Empfohlen — Owner-Freigabe ausstehend* |
 
-## 2 · Erzeuger-Abo — die fünf kanonischen Stufen
+- Diese 1 % decken die sichere Zahlungsabwicklung und Betrugsschutz ab — gerade am unbemannten SB-Stand der entscheidende Mehrwert (kein Bargeld nötig, sofortige Quittung).
+- **Vollständiger Gesamtpreis vor dem Kauf (PAngV):** Bevor du auf den zahlungspflichtigen Button tippst, siehst du den **kompletten Endpreis** — Warenwert **plus** Service-Gebühr als eigene Position. Kein Drip-Pricing, keine Überraschung an der Kasse.
+- **Kein Käufer-Premium.** Wir bieten bewusst keine kostenpflichtige Käufer-Mitgliedschaft an — für Gelegenheitskäufe lohnt sie sich nie. Deine 1 % bleiben fix und niedrig.
 
-Kanonische Plan-Stufen des Imperiums (`CLAUDE.md` Datenbank-/Planregeln, `agb.md` §10): **`demo` · `basis` · `plus` · `pro` · `individuell`**. „Enterprise" ist **kein** öffentlicher Plan, sondern das Funktionsniveau in `individuell`. Plan-Persistenz = `orgs.plan`; Durchsetzung **serverseitig** (RLS + Edge-Function-Entitlement-Auflösung), das Frontend spiegelt nur und zeigt bei Lock einen **konkreten Upgrade-Pfad** (Pfeiler 4).
-
-### 2.1 Stufen-Charakter
-
-| Stufe | Charakter | Für wen | Geldfluss |
-|---|---|---|---|
-| **`demo`** | Kostenlose Grund-Sichtbarkeit | Jeder neue Hof; Hofläden, die „erst ankommen" wollen | 0 € — kein Abo |
-| **`basis`** | Schlankes Einsteiger-Abo | Aktive Höfe mit regelmäßiger Selbstpflege | niedriges Monats-/Jahresabo |
-| **`plus`** | Reichweite + Self-Service-Tiefe | Höfe mit mehreren Produkten/Abholfenstern, aktivem SB-Stand | mittleres Abo |
-| **`pro`** | Volle Plattform-Hebel | Größere Betriebe, Hofläden-Verbünde, hohes SB-Volumen | höheres Abo |
-| **`individuell`** | Verhandelt (Enterprise-Niveau) | Erzeugergemeinschaften, regionale Vermarkter, Sonderbedarf | Angebot/Vertrag (kein Katalogpreis) |
-
-> **Bewusst schlank:** Nur **eine** kostenlose und **eine** Einsteiger-Stufe als Mission-Anker, darüber zwei Wachstums-Stufen und ein Verhandlungs-Tier. Keine künstliche Tier-Inflation. Die Differenzierung läuft über **Reichweite, Self-Service-Tiefe, SB-Gebührenhöhe und Support** — nicht über das Wegsperren von Grundfunktionen.
-
-### 2.2 Feature- & Limit-Matrix
-
-`✓` = enthalten · `✗` = nicht enthalten · `—` = nicht anwendbar. Zahlenwerte mit `[[OWNER: …]]` sind Geschäftsparameter und vom Owner final festzulegen (Commercial-/Stop-Regel `CLAUDE.md`).
-
-```
-Funktion / Limit                          │ demo      │ basis     │ plus       │ pro          │ individuell
-──────────────────────────────────────────┼───────────┼───────────┼────────────┼──────────────┼─────────────
-HOFLADEN-PRÄSENZ
-  Hof im Finder/Karte sichtbar             │ ✓ (Basis) │ ✓         │ ✓          │ ✓            │ ✓
-  Hof-Detailseite (Beschreibung, Öffnung)  │ ✓ (kurz)  │ ✓         │ ✓          │ ✓            │ ✓
-  Hof-Galerie / Bilder                     │ [[OWNER]] │ ✓         │ ✓          │ ✓            │ ✓
-  Premium-Listing (bedingt, §4)            │ ✗         │ ✗         │ optional   │ ✓ inkludiert │ ✓ inkludiert
-  Mehrere Standorte / Höfe je Org          │ 1         │ 1         │ [[OWNER]]  │ [[OWNER]]    │ unbegrenzt
-PRODUKTVERFÜGBARKEIT (Erzeuger-Selbstpflege)
-  Gepflegte Produkte (aktiv)               │ [[OWNER]] │ [[OWNER]] │ [[OWNER]]  │ unbegrenzt   │ unbegrenzt
-  Verfügbarkeits-/Bestandspflege (mobil)   │ ✓ (Basis) │ ✓         │ ✓          │ ✓            │ ✓
-  Saison-/Vorankündigung pflegen           │ ✗         │ ✓         │ ✓          │ ✓            │ ✓
-RESERVIERUNG & ABHOLUNG
-  Reservierung/Abholfenster anbieten       │ ✓ (Basis) │ ✓         │ ✓          │ ✓            │ ✓
-  Aktive Reservierungen gleichzeitig       │ [[OWNER]] │ [[OWNER]] │ [[OWNER]]  │ unbegrenzt   │ unbegrenzt
-  Abholfenster-Kalender (Slots)            │ einfach   │ ✓         │ ✓ erweitert│ ✓ erweitert  │ ✓ erweitert
-SAISON-RADAR & REICHWEITE
-  Im Saison-Radar gelistet                 │ ✓         │ ✓         │ ✓          │ ✓            │ ✓
-  Push bei Saison-/Verfügbarkeits-Alerts*  │ ✗         │ ✓         │ ✓          │ ✓            │ ✓
-  Hervorhebung „in der Nähe" / Ranking-Boost│ ✗         │ ✗         │ optional   │ ✓            │ ✓
-SB-BEZAHLUNG (USP)
-  SB-Stand aktivierbar (QR → Stripe)       │ [[OWNER]] │ ✓         │ ✓          │ ✓            │ ✓
-  SB-Transaktionsgebühr (§3)               │ Standard  │ Standard  │ reduziert  │ stärker red. │ verhandelt
-  Einnahmen-/Schwund-Dashboard             │ ✗         │ ✓ (Basis) │ ✓          │ ✓ erweitert  │ ✓ erweitert
-SUPPORT & SLA
-  Support-Kanal                            │ Self-Serv.│ E-Mail    │ E-Mail prio│ prio + Chat  │ benannt/SLA
-  Reaktionsziel (Werktags)                 │ —         │ [[OWNER]] │ [[OWNER]]  │ [[OWNER]]    │ vertraglich
-  Plattform-Verfügbarkeits-Zusage          │ —         │ —         │ —          │ —            │ [[OWNER: SLA]]
-```
-
-\* *Saison-/Verfügbarkeits-Alerts sind ein **Käufer**-Feature (`docs/spezialmodule/SAISON_RADAR.md`); hier ist gemeint, dass der Hof als **Auslöser** solcher Alerts in höheren Stufen aktiv erfasst/priorisiert wird.*
-
-> **Pfeiler 4 (RBAC ohne Lücken):** Jeder Plan-Lock zeigt dem Erzeuger den **konkreten** Upgrade-Pfad („Diese Funktion ist ab `plus` verfügbar — jetzt upgraden"), kein toter Hinweis, kein Sackgassen-State. Limits werden **serverseitig** geprüft; ein Client-seitiges Umgehen ändert nichts an der DB-Durchsetzung.
-
-### 2.3 Beispielpreise (Owner-Entscheidung)
-
-> **Geld-/Pricing-Entscheidung erfordert Owner-Freigabe** (`CLAUDE.md` Commercial-/Stop-Regel). Die folgenden Felder sind **Platzhalter**, keine zugesagten Preise. Beim Festlegen gilt §0-Direktive 3 (Owner-Wert × Mission-Balance) sowie Mission-Leitsatz 1 (niedrige Einstiegshürde).
-
-```
-Stufe         │ Monatspreis            │ Jahrespreis (Vorteil)        │ USt-Ausweisung
-──────────────┼────────────────────────┼──────────────────────────────┼──────────────────────────
-demo          │ 0 €                    │ 0 €                          │ —
-basis         │ [[OWNER: z. B. X €/Mon]]│ [[OWNER: z. B. Y €/Jahr]]    │ [[OWNER: zzgl./inkl. USt.]]
-plus          │ [[OWNER: z. B. X €/Mon]]│ [[OWNER: z. B. Y €/Jahr]]    │ [[OWNER: zzgl./inkl. USt.]]
-pro           │ [[OWNER: z. B. X €/Mon]]│ [[OWNER: z. B. Y €/Jahr]]    │ [[OWNER: zzgl./inkl. USt.]]
-individuell   │ Angebot                │ Angebot                      │ vertraglich
-```
-
-- **Abrechnungsintervall:** Monats- oder Jahresabo (Jahr mit Rabatt zur Bindung empfohlen). [[OWNER: Höhe Jahresrabatt, z. B. „2 Monate frei".]]
-- **Währung:** EUR (EU-Plattform, `agb.md`/`COMPLIANCE_MODEL.md`).
-- **Umsatzsteuer:** [[OWNER: Preise zzgl. oder inkl. gesetzlicher USt. — konsistent zu `agb.md` §10 Abs. 3.]]
-- **Zahlungsmittel:** Stripe (Karte/SEPA-Lastschrift, je nach Stripe-Konfiguration). Abo-Mechanik vollständig über Stripe-Subscriptions; Entitlement erst nach signiertem Webhook (§5).
+> **Hinweis für Höfe / Owner-Entscheidung:** Ob die Service-Gebühr für Käufer:innen **sichtbar on-top** als eigene Position erscheint oder bereits **in den Stückpreis eingerechnet** ist (dann trägt der Hof rechnerisch die vollen 6 % netto), ist eine offene Owner-Entscheidung (siehe §8). Beide Varianten zeigen vor dem Kauf den vollständigen Endpreis.
 
 ---
 
-## 3 · SB-Transaktionsgebühr (USP-Monetarisierung)
+## 3 · Was Höfe (Verkäufer:innen) zahlen
 
-> **Quelle der Mechanik:** `docs/spezialmodule/SB_BEZAHLUNG_USP.md` §7 (Gebührenmodell). Diese Sektion ist die **kommerzielle** Sicht; die technische Wahrheit liegt in der Edge Function (`initiate`) und in `sb_payments.platform_fee_cents`. **Nie** Client-Wert, **nie** in der UI hartkodiert.
+**Sichtbar werden kostet nichts.** Ein Hof kann sich kostenlos im Finder eintragen, Produkte und Abholfenster pflegen und erste Käufer:innen gewinnen, **bevor Geld fließt**. Es gibt kein Pflicht-Abo und keine Listengebühr — wir verdienen erst, wenn der Hof über die Plattform verkauft.
 
-### 3.1 Gebühren-Formel (serverseitig)
+| Posten | Hof-Gebühr (Standard, Status „Neu") |
+|---|---|
+| **Provision je Verkauf** | **5 %** des Warenwerts · *Empfohlen — Owner-Freigabe ausstehend* |
+| **Mindestgebühr je Transaktion** | **0,25 €** · *Empfohlen — Owner-Freigabe ausstehend* |
 
-Je **erfolgreicher** SB-Zahlung erhebt die Plattform eine kleine, serverseitig berechnete Gebühr:
+- **Über 94 % bleiben beim Hof.** Zusammen mit der Käufer-Service-Gebühr von 1 % ergibt das eine **Gesamt-Take-Rate von 6 %** — deutlich günstiger als vergleichbare Vermarktungs-Plattformen (siehe §7).
+- **Warum 5 %?** Die Hauptlast trägt bewusst der Hof, denn er spart durch die sichere SB-Bezahlung am meisten: kein Bargeld-Handling, kein Schwund aus der Vertrauenskasse, sofortige Gutschrift.
+- **Mindestgebühr 0,25 € je Transaktion:** Bei sehr kleinen Beträgen (z. B. 2 € für ein Glas Honig) deckt die prozentuale Gebühr die Zahlungsdienstleister-Kosten nicht. Die kleine Mindestgebühr stellt sicher, dass jede Transaktion kostendeckend bleibt — fair für beide Seiten.
+- **Der Warenwert geht direkt an den Hof.** Über Stripe Connect fließt der Kaufpreis **unmittelbar auf das Hof-Konto**; die Plattform behält ausschließlich ihre Gebühr. Wir sind Zahlungsanbindung und Vermittler, **nicht** Verkäufer und **nicht** Empfänger des Kaufpreises. Die Quittung weist immer den **Hof als Leistungserbringer** aus.
 
-```
-platform_fee_cents = max( fixfee_cents , round( amount_cents × pct ) )
-```
+---
 
-- Der `max(...)`-Term deckt die Stripe-Mindestkosten auch bei Kleinstbeträgen ab.
-- Die Gebühr ist **degressiv gestaltbar** (z. B. niedrigerer `pct` ab einem Volumen/Betrag), damit höhere Beträge nicht überproportional belastet werden.
-- `amount_cents` wird **immer serverseitig** aus `products.price_cents` (bzw. dem gegen die DB aufgelösten Warenkorb) bestimmt — kein Preis kommt aus dem QR/Link (Tamper-Schutz, `SB_BEZAHLUNG_USP.md` §5.3/§6).
+## 4 · Premium-Mitgliedschaft „Hof-Plus" (optional, nur für Höfe)
 
-### 3.2 Erhebungsweg
+Umsatzstarke Voll-Erwerbs-Höfe können mit der Premium-Mitgliedschaft ihre Verkaufs-Provision **auf 0 %** senken — gegen einen festen Monatsbeitrag plus echtem Wert-Bundle.
 
-| Aspekt | Default-Pfad (käuferfreundlich) | Alternative (Owner-Entscheidung) |
+| Premium „Hof-Plus" | Wert |
+|---|---|
+| **Monatsbeitrag** | **39 €/Monat** · *Empfohlen — Owner-Freigabe ausstehend* |
+| **Effekt auf die Provision** | Verkäufer-Provision **0 %** statt 5 % |
+| **Bleibt bestehen** | Käufer-Service-Gebühr 1 % · Mindestgebühr 0,25 €/Transaktion |
+
+**Im Premium-Beitrag enthalten (Wert-Bundle, nicht nur Spar-Rechner):**
+
+- **Prioritäts-Ranking** im Hofladen-Finder und Saison-Radar (fair gekennzeichnet, kein verdecktes Bezahl-Ranking).
+- **Saison-Alerts** für deine Stammkundschaft.
+- **Mehrere SB-Stände** unter einer Mitgliedschaft.
+- **Einnahmen-Dashboard** (Brutto · Plattformgebühr · Zahlungsdienstleister-Gebühr · Netto, je Transaktion und im Zeitverlauf).
+
+> **Für wen lohnt sich Premium?** Ab rund **780 € Plattform-Umsatz pro Monat** gleicht die eingesparte Provision den Beitrag aus — darüber sparst du. Für kleinere Höfe ist die reine Provision (ohne Abo) die günstigere Wahl. Wir verkaufen Premium bewusst als **planbaren, vorausbezahlten Cashflow + Status**, nicht als versteckte Pflicht.
+>
+> **Der Owner-Vorschlag lag bei 30 €/Monat;** empfohlen sind 39 €/Monat (bewusst über der reinen Spar-Schwelle, gekoppelt an das Wert-Bundle). Final = Owner-Freigabe ausstehend.
+
+**Keine echten 0/0-Gebühren.** Auch mit Premium bleiben die 1 % Käufer-Service-Gebühr und die Mindestgebühr von 0,25 €/Transaktion bestehen — so subventioniert die Plattform nie eine einzelne Transaktion unter ihren eigenen Zahlungsdienstleister-Kosten.
+
+---
+
+## 5 · Status-Stufen — gute Höfe zahlen weniger
+
+Je länger und besser ein Hof über die Plattform verkauft, desto **niedriger** wird seine Verkaufs-Provision — automatisch, ohne Abo. Die Status-Stufen belohnen **echte, verifizierte Leistung** (bezahlte Verkäufe, gute Bewertungen, zuverlässige Abholung), nicht nur Volumen. Die Käufer-Service-Gebühr von 1 % bleibt auf allen Stufen gleich.
+
+| Status | Verkäufer-Provision | Woran er sich orientiert (vereinfacht) |
 |---|---|---|
-| **Wer trägt die Gebühr** | **Hof aus Netto** via `application_fee_amount` bei der Connect-Belastung | Käufer-Aufschlag, vor Zahlung transparent ausgewiesen |
-| **Käufer-Sicht** | Käufer zahlt den **ausgewiesenen Warenwert**, keine separate Käufer-Gebühr | Gebühr separat auf der Quittung ausgewiesen |
-| **Transparenz** | Im Erzeuger-Dashboard als separater Posten (Brutto · Plattformgebühr · Stripe-Gebühr · Netto) | zusätzlich auf der Käufer-Quittung |
-| **Stripe-Gebühr** | trägt der Hof aus Connect-Netto; im Dashboard separat ausgewiesen | konfigurierbar |
+| **Neu** | **5,0 %** | Startwert ab Onboarding |
+| **Bronze** | **4,6 %** | ab ~2.000 € Umsatz · ≥ 5 verifizierte Bewertungen · Rating ≥ 4,0 |
+| **Silber** | **4,2 %** | ab ~10.000 € Umsatz · ≥ 15 Bewertungen · Rating ≥ 4,3 |
+| **Gold** | **3,8 %** | ab ~40.000 € Umsatz · ≥ 40 Bewertungen · Rating ≥ 4,5 · ≥ 95 % erfüllte Reservierungen |
+| **Platin** | **3,4 %** | ab ~150.000 € Umsatz · ≥ 100 Bewertungen · Rating ≥ 4,6 · ≥ 98 % erfüllte Reservierungen |
 
-> **Default = `application_fee` aus Hof-Netto.** Begründung: friktionsarm für Käufer (kein Aufschlag, keine Abbruch-Hürde am SB-Stand), mission-konsistent (Lebensmittel nicht verteuern) und für den Hof transparent gegenüber dem klassischen Bargeld-Schwund. Der Erhebungsweg ist ein **Owner-Parameter**, keine hartkodierte Geschäftslogik (`agb.md` §6 weist die jeweils geltende Gebühr vor Abschluss transparent aus).
+> Alle Werte: *Empfohlen — Owner-Freigabe ausstehend.*
 
-### 3.3 Plan-Kopplung der SB-Gebühr
-
-Die SB-Gebührenhöhe ist an `orgs.plan` koppelbar — höhere Abo-Stufen erhalten eine **reduzierte** SB-Gebühr als Entitlement (serverseitig aufgelöst). Damit ist das Abo **nicht** reines Kostenrisiko, sondern senkt die variable Gebühr — ein in sich stimmiger Upgrade-Anreiz für Höfe mit hohem SB-Volumen.
-
-```
-Stufe         │ SB-Transaktionsgebühr (pct / fixfee)              │ Charakter
-──────────────┼───────────────────────────────────────────────────┼──────────────────────
-demo          │ [[OWNER: z. B. A % + B €, Standardsatz]]          │ Standard
-basis         │ [[OWNER: Standardsatz]]                           │ Standard
-plus          │ [[OWNER: reduzierter Satz]]                       │ reduziert
-pro           │ [[OWNER: stärker reduzierter Satz]]               │ stärker reduziert
-individuell   │ [[OWNER: vertraglich verhandelt]]                 │ verhandelt
-```
-
-> **Mindestgebühr (`fixfee_cents`):** [[OWNER: z. B. „mind. B € pro Transaktion".]] **Prozentsatz (`pct`):** [[OWNER: z. B. „A %".]] Diese beiden Werte sind die zentralen Stellschrauben der USP-Monetarisierung und werden zentral konfiguriert (Owner-Parameter pro Plan/Org), nicht im Code verstreut.
-
-### 3.4 Erstattungen
-
-Bei Refund über die ursprüngliche Charge wird die `application_fee` **konfigurierbar mit-erstattet** (Default: anteilige Gebühren-Rückerstattung bei Vollerstattung) — als Owner-Parameter, nie hartkodierte Geschäftslogik (`SB_BEZAHLUNG_USP.md` §4.3). [[OWNER: Refund-Gebührenpolitik bestätigen — z. B. „Plattformgebühr wird bei Vollerstattung anteilig zurückerstattet".]]
+- **Untergrenze (Floor):** Die Verkäufer-Provision sinkt nie unter **1,2 %** — auch bei Premium oder höchstem Status bleibt sie kostendeckend.
+- **Fair und manipulationssicher:** Es zählt nur **verifizierter, nicht erstatteter** Umsatz aus echten bezahlten Reservierungen. Bei Rückerstattungen, Streitfällen, sinkendem Rating oder längerer Inaktivität kann ein Hof in eine niedrigere Stufe zurückgestuft werden. Selbstkäufe oder Kollusion werden technisch erkannt und greifen nicht.
+- **Status ist ein Verkäufer-Attribut.** Die Stufen senken ausschließlich die **Verkäufer**-Provision — die Käufer-Gebühr ist davon unberührt.
 
 ---
 
-## 4 · Premium-Listing (bedingt)
+## 6 · Beispiel-Rechnungen
 
-Premium-Listing ist eine **Reichweiten-Hervorhebung** des Hofes (Ranking-Boost im Finder/Saison-Radar, Hervorhebung „in der Nähe", optisch abgesetzte Karte). Es ist **bedingt** — bewusst nicht beliebig käuflich, um die Mission-Integrität zu wahren:
+Alle Beträge gerundet, Prozentsätze *Empfohlen — Owner-Freigabe ausstehend*. „ZD-Gebühr" = Zahlungsdienstleister-Gebühr (Stripe), die der Hof aus seinem Netto trägt.
 
-1. **Plan-gebunden:** als **Option** ab `plus`, **inkludiert** ab `pro`/`individuell`. In `demo`/`basis` **nicht** verfügbar (kein Pay-to-Win für inaktive Einsteiger-Höfe).
-2. **Qualitäts-/Aktivitäts-Gate (nicht verhandelbar):** Premium-Sichtbarkeit setzt einen **gepflegten, verifizierten** Hof voraus — d. h. Hof-Verifizierung durch Staff abgeschlossen (`PHASEN.md` WAVE_07), aktuelle Verfügbarkeitspflege und vollständige Pflichtangaben (Öffnung, Kontakt, Lebensmittel-Hinweis). **Geld allein kauft keine Top-Platzierung** — ein veralteter oder unverifizierter Hof wird nicht hochgereiht. Das schützt das Käufer-Vertrauen (der eigentliche Plattform-Wert) und ist Pfeiler-konform (Pfeiler 4/7).
-3. **Transparenz & Fairness:** Hervorgehobene Treffer sind als solche **erkennbar** (kein verdecktes Bezahl-Ranking, das Käufer täuscht). Organisches Ranking (Nähe, Saison-Passung, Aktualität) bleibt die Basis; Premium ist ein **moderater** Boost, kein Ausblenden der Konkurrenz.
+### 6.1 Korb für 20,00 € — Standard-Hof (Status „Neu", kein Premium)
 
-> **Owner-Entscheidung:** Ob Premium-Listing als separat buchbares Add-on (Aufpreis) oder rein als Plan-Inklusivleistung geführt wird. Default = Plan-Inklusivleistung (schlank, keine zusätzliche Buchungs-Komplexität). [[OWNER: Premium-Listing als Add-on mit Aufpreis (z. B. X €/Mon) ODER ausschließlich Plan-inkludiert? Falls Add-on: Preis + Buchbarkeit ab welcher Stufe.]]
+| Posten | Betrag |
+|---|---|
+| Warenwert (an den Hof) | 20,00 € |
+| **Käufer zahlt** (Warenwert + 1 % Service-Gebühr) | **20,20 €** |
+| Verkäufer-Provision (5 %, mind. 0,25 €) | − 1,00 € |
+| Plattform-Gebühr gesamt (1 % Käufer + 5 % Hof) | 1,20 € |
+| Hof erhält (vor ZD-Gebühr) | ≈ 19,00 € |
+
+> Ergebnis: Käufer:in zahlt **20,20 €**, der Hof behält rund **19,00 €** — die Plattform erhält **1,20 €** (6 % gesamt).
+
+### 6.2 Korb für 20,00 € — Gold-Hof (Provision 3,8 %)
+
+| Posten | Betrag |
+|---|---|
+| **Käufer zahlt** (20,00 € + 1 %) | **20,20 €** |
+| Verkäufer-Provision (3,8 %) | − 0,76 € |
+| Hof erhält (vor ZD-Gebühr) | ≈ 19,24 € |
+
+> Höherer Status = mehr bleibt beim Hof: hier rund **19,24 €** statt 19,00 €.
+
+### 6.3 Korb für 20,00 € — Premium-Hof „Hof-Plus" (0 % Provision)
+
+| Posten | Betrag |
+|---|---|
+| **Käufer zahlt** (20,00 € + 1 %) | **20,20 €** |
+| Verkäufer-Provision (0 %, aber Mindestgebühr) | − 0,25 € |
+| Hof erhält (vor ZD-Gebühr) | ≈ 19,75 € |
+| zzgl. Premium-Beitrag | 39,00 €/Monat |
+
+> Premium lohnt sich erst ab Umsatz: bei nur einem 20-€-Korb im Monat trägt der Hof 39 € Beitrag; ab ~780 €/Monat Plattform-Umsatz kippt die Rechnung zugunsten von Premium.
+
+### 6.4 Kleiner SB-Kauf für 3,00 € (USP: Honigglas am unbemannten Stand)
+
+| Posten | Betrag |
+|---|---|
+| **Käufer zahlt** (3,00 € + 1 %) | **3,03 €** |
+| Verkäufer-Provision (5 % = 0,15 € → Mindestgebühr greift) | − 0,25 € |
+| Hof erhält (vor ZD-Gebühr) | ≈ 2,78 € |
+
+> Bei Kleinbeträgen greift die **Mindestgebühr 0,25 €** statt der 5 % — sonst würde die Plattform am USP (sichere SB-Kleinbeträge) Verlust machen.
 
 ---
 
-## 5 · Abrechnung, Entitlement & Webhook-Wahrheit
+## 7 · Wie wir im Vergleich dastehen
 
-> **Bezug:** `SB_BEZAHLUNG_USP.md` (Webhook-Pattern), `docs/SUBSCRIPTION_LIFECYCLE.md` (geplant), `docs/STRIPE-SETUP.md` (geplant).
+| Plattform | Gesamt-Take-Rate (Richtwert) |
+|---|---|
+| **LokaleBauernConnect** | **≈ 6 %** *(Empfohlen — Owner-Freigabe ausstehend)* |
+| Marktschwärmer | ≈ 18 % |
+| CrowdFarming / La Ruche | ≈ 20 % |
+| Etsy (inkl. Payment) | ≈ 6,5 % + Gebühren |
 
-- **EIN signaturgeprüfter, idempotenter Stripe-Webhook** ist die einzige Quelle für Entitlement-Änderungen (`CLAUDE.md` Backend-Regeln). Frontend-Signale (z. B. „Upgrade geklickt") setzen **nie** ein Entitlement.
-- **Entitlement-Auflösung serverseitig:** `orgs.plan` + Plan→Limit-Map (Edge Function / DB), nie im Client. Das Frontend liest den aufgelösten Zustand und spiegelt ihn (Locks, Upgrade-CTAs).
-- **Idempotenz:** Jedes Stripe-Event wird über eine eindeutige Event-ID genau einmal wirksam (kein Doppel-Grant bei Webhook-Retries).
-- **Audit (Pfeiler 5):** Jede plan-/entitlement-relevante Mutation schreibt `subscription.changed` bzw. `entitlement.granted` (`COMPLIANCE_MODEL.md` §Commercial-Audit) — wer/was/warum, unabschaltbar.
-- **Zahlungsverzug:** Bei ausbleibender Abo-Zahlung können kostenpflichtige Funktionen **nach Ankündigung** ausgesetzt werden (`agb.md` §10 Abs. 4). Rückstufung erfolgt geordnet (§6), nicht durch hartes Löschen.
+> Quelle der Vergleichswerte: interne Marktrecherche (`docs/COMMERCIAL_SOURCE_OF_TRUTH.md`). Richtwerte, keine tagesaktuellen Garantien der Wettbewerber. Unsere Botschaft an Höfe: **über 94 % deines Umsatzes bleiben bei dir.**
 
 ---
 
-## 6 · Tarifwechsel & Lebenszyklus
+## 8 · Offene Owner-Entscheidungen (Pricing)
 
-> **Detail-Spezifikation:** `docs/SUBSCRIPTION_LIFECYCLE.md` (geplant). Hier die kommerziellen Eckpunkte; sie sind konsistent zu `agb.md` §16 (Laufzeit/Kündigung).
+> **Geld-/Pricing ist Owner-Hoheit.** Alle Zahlen oben gelten erst nach Freigabe. Konsolidiert aus `docs/COMMERCIAL_SOURCE_OF_TRUTH.md`.
 
-| Vorgang | Wirksamkeit | Folge |
+| ID | Entscheidung | Empfehlung |
 |---|---|---|
-| **Upgrade** | Sofort | Differenz anteilig (Stripe-Proration); neue Entitlements/SB-Gebühr greifen unmittelbar nach Webhook |
-| **Downgrade** | Zum Ende des Abrechnungszeitraums | höhere Entitlements (Premium-Listing, reduzierte SB-Gebühr, erweiterte Limits) enden zeitgleich; Daten bleiben erhalten |
-| **Kündigung** | Zum Ende des Abrechnungszeitraums, Frist im Bestellprozess | kostenpflichtige Funktionen aus; Hof kann auf **kostenfreie `demo`-Basis-Sichtbarkeit** zurückgestuft oder nach Ankündigung depubliziert werden |
-| **Rückstufung auf `demo`** | mit Kündigungswirksamkeit | Hof bleibt grundsichtbar; Premium/erweiterte Limits entfallen; **keine** Datenlöschung allein durch Downgrade |
-
-- **Mindestlaufzeit & Kündigungsfrist:** [[OWNER: z. B. „Mindestlaufzeit 1 Monat, Kündigungsfrist 30 Tage zum Laufzeitende" — konsistent zu `agb.md` §16 Abs. 2.]]
-- **Erstattung laufender Perioden:** Bereits gezahlte Entgelte werden für laufende Perioden, soweit gesetzlich nicht anders geboten, **nicht** anteilig erstattet (`agb.md` §16 Abs. 3).
-- **Datenportabilität bleibt planunabhängig:** Auch nach Downgrade/Kündigung kann der Erzeuger seinen Betriebs-Datensatz selbst exportieren (`COMPLIANCE_MODEL.md` §Auskunft/Export) — Export ist **gesetzliche Pflicht**, nie hinter einem Plan-Lock.
-
----
-
-## 7 · Aufbewahrung & kommerzielle Wahrheitsdefinitionen
-
-> **Bezug:** `docs/COMMERCIAL_SOURCE_OF_TRUTH.md` (geplant), `COMPLIANCE_MODEL.md` §4 (Aufbewahrung), `SB_BEZAHLUNG_USP.md` (`sb_payments` Kat. C).
-
-- **Aufbewahrung:** SB-Zahlungen (`sb_payments`) und Abo-Rechnungen sind **aufbewahrungspflichtig (Kat. C, 10 Jahre, HGB §257/AO §147)** — während der Frist **nicht löschbar**, auch nicht über Erzeuger-Self-Service.
-- **MRR-/Revenue-Trennung** (für Due-Diligence-fähige Reporting-Sichten):
-
-```
-Catalog MRR (theoretisch)   │ Katalog-/Tier-Referenzwert aktiver bezahlter Abos
-Contractual MRR (anerkannt) │ MRR nach Preisquellen-Präzedenz je aktiver Subscription
-Invoiced Revenue            │ Σ Rechnungen mit Status issued | overdue | paid
-Paid Revenue                │ Σ Rechnungen mit Status paid
-Open Receivables            │ Σ Rechnungen mit Status issued | overdue
-SB-Volumen (usage)          │ Σ sb_payments.platform_fee_cents WHERE status = succeeded (Zeitraum)
-```
-
-- **Preisquellen-Präzedenz für `individuell`** (analog Imperium-Standard):
-  1. `custom_quote_pending` — **keine** Revenue-Anerkennung (offene Angebotsphase fließt nie als „0 €" implizit in KPI-Summen ein),
-  2. `individual_contract_price_cents`,
-  3. `pilot_price_cents`,
-  4. Katalog-/Tierpreis.
+| PR-01 | Finale Sätze: 5 % Hof / 1 % Käufer (= 6 % gesamt) statt Owner-Vorschlag 3/3 | 5/1 — schützt SB-Konversion + Mission „Käufer zahlen nie für den Zugang" |
+| PR-02 | Käufer-Gebühr **sichtbar on-top** vs. **in den Stückpreis eingerechnet** | entscheidet Checkout-UX + AGB; vollständiger Endpreis vor Kauf in beiden Fällen Pflicht |
+| PR-03 | Mindestgebühr 0,25 €/Transaktion + Floor 1,2 % bestätigen | bestätigen — sonst Verlust bei Tickets < ~5,56 € |
+| PR-04 | Premium-Preis 39 €/Monat (statt 30) · nur Höfe · kein Käufer-Premium · keine echten 0/0 | bestätigen |
+| PR-05 | Refund-/Storno-Gebührenpolitik (Plattformgebühr bei Storno behalten/erstatten?) | vermittler-üblich: Gebühr bei Storno anteilig regeln; Reserve gegen Chargebacks erwägen |
+| PR-06 | Status-Kriterien & -Sätze (Neu→Platin) final bestätigen | wie §5; nur verifizierter, nicht erstatteter Umsatz zählt |
+| PR-07 | Bounties/Credits ausschließlich als nicht-auszahlbarer Gebühren-Rabatt | bestätigen — vermeidet ZAG/E-Geld-Erlaubnispflicht (BaFin) |
 
 ---
 
-## 8 · Offene Owner-Entscheidungen (Pricing) — Sammelübersicht
+## 9 · Rechtliche Hinweise (Kurzfassung)
 
-> Konsolidiert alle `[[OWNER: …]]` dieses Dokuments. **Geld-/Pricing ist Owner-Hoheit** (`CLAUDE.md` Stop-/Commercial-Regel). Korrespondiert mit `SB_BEZAHLUNG_USP.md` §13 (SB-01) und den `agb.md`-Platzhaltern §6/§10/§16.
-
-| ID | Entscheidung | Priorität | Default-Empfehlung |
-|---|---|---|---|
-| PR-01 | Abo-Preise `basis`/`plus`/`pro` (Monat + Jahr) | HOCH | niedrige Einstiegshürde (Mission-Leitsatz 1), Jahresrabatt zur Bindung |
-| PR-02 | USt.-Ausweisung (zzgl./inkl.) | HOCH | konsistent zu `agb.md` §10 |
-| PR-03 | SB-Gebühr `pct` + `fixfee_cents` (Standardsatz) | HOCH | klein, deckt Stripe-Mindestkosten, degressiv |
-| PR-04 | Plan-Staffelung der SB-Gebühr (reduziert ab `plus`/`pro`) | MITTEL | reduzierter Satz als Upgrade-Anreiz |
-| PR-05 | Erhebungsweg SB-Gebühr (`application_fee` aus Hof-Netto vs. Käufer-Aufschlag) | HOCH | `application_fee` aus Hof-Netto (käuferfreundlich) |
-| PR-06 | Refund-Gebührenpolitik (anteilig/voll/keine Rückerstattung) | MITTEL | anteilige Rückerstattung bei Vollerstattung |
-| PR-07 | Premium-Listing: Plan-inkludiert vs. Add-on mit Aufpreis | MITTEL | Plan-inkludiert (schlank) |
-| PR-08 | Limits je Stufe (Produkte, Reservierungen, Standorte) | MITTEL | großzügig, keine künstliche Verknappung |
-| PR-09 | Mindestlaufzeit + Kündigungsfrist | HOCH | konsistent zu `agb.md` §16 |
-| PR-10 | Support-Reaktionsziele + SLA-Zusage `individuell` | MITTEL | Reaktionsziele staffeln; SLA nur in `individuell` |
-| PR-11 | `demo`: SB-Stand und Galerie erlaubt? | MITTEL | SB ja (Volumen-Hebel), Galerie limitiert |
+- **Vermittler-Rolle:** Die Plattform vermittelt und wickelt die Zahlung ab; **Vertragspartner des Kaufs ist der jeweilige Hof**. Die Plattform schuldet Umsatzsteuer nur auf ihre **Provision**, nicht auf den Warenwert.
+- **Vollständiger Endpreis (PAngV):** Der zu zahlende Gesamtpreis inkl. Service-Gebühr wird **vor** dem zahlungspflichtigen Klick vollständig angezeigt.
+- **Verbindliche Geltung:** Maßgeblich sind die jeweils gültigen Gebühren aus dem Bestell-/SB-Prozess sowie die AGB (`docs/launch/B_rechtstexte/agb.md`). Dieses Dokument ist die erklärende Übersicht, nicht der Vertrag.
 
 ---
 
-## 9 · Querverweise
+## 10 · Querverweise
 
-`docs/spezialmodule/SB_BEZAHLUNG_USP.md` (USP-Mechanik, §7 Gebührenmodell) · `docs/COMPLIANCE_MODEL.md` (Vermittler · Subprozessor Stripe · Aufbewahrung · Export) · `docs/launch/B_rechtstexte/agb.md` (§6 SB-Gebühr · §10 Tarife · §16 Laufzeit) · `docs/ROLE_AND_PERMISSION_MODEL.md` (Plan-Locks · Org-Scope) · `docs/SUBSCRIPTION_LIFECYCLE.md` (geplant) · `docs/STRIPE-SETUP.md` (geplant, + Connect/SB) · `docs/COMMERCIAL_SOURCE_OF_TRUTH.md` (geplant) · `PHASEN.md` (WAVE_09 Billing · Phase 4 Track A · Phase 5 Gate 10) · `MASTER_INDEX.md` (4 · Commercial & Billing).
+`app/src/lib/fees.ts` (kanonische Gebührenformel · Single Source of Truth) · `docs/COMMERCIAL_SOURCE_OF_TRUTH.md` (technische Spiegelung) · `docs/spezialmodule/SB_BEZAHLUNG_USP.md` (USP-Mechanik) · `docs/COMPLIANCE_MODEL.md` (Vermittler · DAC7 · USt · Aufbewahrung) · `docs/launch/B_rechtstexte/agb.md` (Gebühren · Premium · Widerruf) · `docs/STRIPE-SETUP.md` (Stripe Connect · Destination Charge · application_fee).

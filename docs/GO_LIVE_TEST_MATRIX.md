@@ -94,7 +94,7 @@ Die Spalte **Pfeiler** verweist auf die 7 Produktionspfeiler (`CLAUDE.md`): **P1
 
 | # | Testfall | Soll-Ergebnis | Typ | Quelle | Pfeiler | Status |
 |---|---|---|---|---|---|---|
-| B-01 | Erzeuger-Registrierung | Signup ⇒ Auth-User; Trigger legt `profiles`; Edge `producer-onboarding-start` setzt `role='producer'`, legt `orgs(plan='demo')` + `org_members(org_owner)` an (service role, auditiert). | I, E2E | Onb. §2 | P5 | ⬜ |
+| B-01 | Erzeuger-Registrierung | Signup ⇒ Auth-User; Trigger legt `profiles`; Edge `producer-onboarding-start` setzt `role='erzeuger'`, legt `orgs(plan='demo')` + `org_members(role='erzeuger')` an (service role, auditiert). | I, E2E | Onb. §2 | P5 | ⬜ |
 | B-02 | Wizard-Autosave je Schritt | Jeder Schritt einzeln speicherbar; Abbruch + Wiederkehr verliert nichts (`producer_onboarding_progress`); Status bleibt `draft`. | E2E, I | Onb. §1.3/§6 | P2 | ⬜ |
 | B-03 | Server-führende Validierung | UI rendert Schema; Edge validiert gegen **dasselbe** Zod-Schema; Pflichtfeld/Format/Plan-Limit serverseitig erzwungen, auch bei manipuliertem Client. | I, U | Onb. §1.2/§5 | P4 | ⬜ |
 | B-04 | Zero-State leere Produkte/Nachweise | Noch keine Produkte/Nachweise ⇒ freundlicher Zero-State + nächster CTA, **kein** 500/leerer Bildschirm. | E2E, U | Onb. §1.4 | P2 | ⬜ |

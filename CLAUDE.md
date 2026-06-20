@@ -86,6 +86,8 @@
 ## Datenbank-, RLS- & Planregeln
 - SQL nur als **neue Migration** unter `app/supabase/migrations/`. Additiv. Jede Tabelle: `org_id`/Tenant, Zeitstempel, `deleted_at`, **RLS deny-by-default + Isolationstest** (Plattform- + Org-Isolation) — ab Migration #1.
 - Kanonische Pläne (Imperium): `demo`, `basis`, `plus`, `pro`, `individuell`. „Enterprise" = Funktionsniveau in `individuell`, kein öffentlicher Plan.
+- **Plattformspezifische Abweichung (LokaleBauernConnect):** STATT klassischer SaaS-Abostufen gilt ein **Transaktions-Provisionsmodell** — Käufer- **und** Verkäufer-Provision pro Kauf, optionale **Premium-Mitgliedschaft 30 EUR/Monat** (senkt die Provision) sowie **Reputations-/Tier-Rabatte** (status-gestaffelt). Begründung, Sätze, Risiken und Owner-Freigaben: `docs/adr/0003-provisionsmodell.md`.
+- **Provisions-Source-of-Truth (verbindlich):** Jede Gebühren-/Provisionsänderung MUSS synchron in `app/src/lib/fees.ts` (Single Source of Truth) UND `docs/COMMERCIAL_SOURCE_OF_TRUTH.md` gepflegt werden; Strukturänderung → neue ADR.
 
 ## Sicherheits- & Betriebsregeln
 - Secrets nie in Code/Log — nur Env/Secret-Manager. Kein Commit ohne ausdrückliche Owner-Freigabe; Co-Author-Zeile anhängen.

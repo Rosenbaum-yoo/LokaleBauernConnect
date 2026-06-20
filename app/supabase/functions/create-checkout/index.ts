@@ -73,11 +73,15 @@ Deno.serve(async (req) => {
         line_items.push({ quantity: qty, price_data: { currency: 'eur', unit_amount: unit, product_data: { name: `${p.name} — Hofladen` } } })
       }
       if (!line_items.length) return json({ error: 'product_not_found' }, 404)
-      const { data: pay } = await db.from('sb_payments').insert({ org_id: orgId, farm_id: farmId, product_id: null, quantity: line_items.length, amount_cents: total, payer_contact: body.contact ?? null }).select('id').single()
+      const productPositions = line_items.length
+      // Freiwilliger Unterstuetzungsbeitrag an die Plattform (getrennt vom Warenwert -> Hof). Max 1000 EUR.
+      const supportCents = Math.max(0, Math.min(100000, Math.round((Number(body.support) || 0) * 100)))
+      if (supportCents > 0) line_items.push({ quantity: 1, price_data: { currency: 'eur', unit_amount: supportCents, product_data: { name: 'Unterstützung der Plattform (freiwillig)' } } })
+      const { data: pay } = await db.from('sb_payments').insert({ org_id: orgId, farm_id: farmId, product_id: null, quantity: productPositions, amount_cents: total, support_cents: supportCents, payer_contact: body.contact ?? null }).select('id').single()
       const session = await stripe.checkout.sessions.create({
         mode: 'payment', automatic_payment_methods: { enabled: true }, line_items,
         success_url: successUrl, cancel_url: cancelUrl,
-        metadata: { kind: 'sb_payment', sb_payment_id: pay?.id ?? '', org_id: orgId, farm_id: farmId },
+        metadata: { kind: 'sb_payment', sb_payment_id: pay?.id ?? '', org_id: orgId, farm_id: farmId, support_cents: String(supportCents) },
         ...(body.contact ? { customer_email: String(body.contact) } : {}),
       })
       if (pay) await db.from('sb_payments').update({ stripe_checkout_session: session.id }).eq('id', pay.id)

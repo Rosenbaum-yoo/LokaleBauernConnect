@@ -62,7 +62,7 @@ export function can(role: Role, action: Action, ctx?: { ownsOrg?: boolean }): bo
 
 | Surface | Route(n) | Zielrolle | Guard (Welle) | Tabu |
 |---|---|---|---|---|
-| **Käufer-App** | `/`, `/hof/:id`, `/saison`, `/sb/:locationId` | `anon` + `kaeufer` | öffentlich (RLS read) | keine Erzeuger-/Staff-Links, keine internen IDs/Org-Daten |
+| **Käufer-App** | `/` (Finder inkl. Saison-Radar-Banner/-Filter), `/hof/:farmId`, `/stand/:farmId` (SB-Bezahlung) | `anon` + `kaeufer` | öffentlich (RLS read) | keine Erzeuger-/Staff-Links, keine internen IDs/Org-Daten |
 | **Erzeuger-Dashboard** | `/erzeuger`, `/erzeuger/produkte`, `/erzeuger/reservierungen`, `/erzeuger/einnahmen` | `erzeuger` (org-gebunden) | Auth + `requireOrgMember` (WAVE_06 live) | keine fremden Orgs, keine Staff-Funktionen |
 | **Betriebszentrale (Staff/Owner)** | `/staff/*` (Phase 3) | `staff`, `owner` | Auth + `requireRole(['staff','owner'])` + Audit | nie Käufer-Eigentum vortäuschen; kritische Aktion = Confirm+Reason |
 

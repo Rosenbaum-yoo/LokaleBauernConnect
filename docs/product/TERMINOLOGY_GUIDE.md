@@ -24,8 +24,8 @@
 
 > **Technische Domänenbegriffe leben intern; im UI gilt rollenabhängige Kundensprache.**
 
-1. **Trennung Intern ↔ Sichtbar.** Englische/technische Begriffe (`farm`, `availability`, `reservation`,
-   `pickup_window`, `sb_payment`, `buyer`/`producer`) bleiben in DB-Feldern, Enums, API-Pfaden, Edge-Functions,
+1. **Trennung Intern ↔ Sichtbar.** Technische Begriffe (`farms`, `products.availability`, `reservations`,
+   `farms.pickup_windows`, `sb_payments`, Rollen `kaeufer`/`erzeuger`) bleiben in DB-Feldern, Enums, API-Pfaden, Edge-Functions,
    Migrationen, Tests und Code-Kommentaren. **Im UI niemals.** Im UI steht ausschließlich die deutsche
    Hof-Sprache aus diesem Leitfaden.
 2. **Rollenabhängigkeit.** Derselbe Sachverhalt heißt je nach Welt anders: ein Käufer sieht „Reservieren",
@@ -49,17 +49,17 @@ User-Anweisung > AGENTS.md > dieser Leitfaden > Subagenten-Default
 
 ## 1 · Rollen-Übersicht (Anzeigenamen)
 
-| DB-Rolle (`profiles.role`) | Welt | Anzeigename im UI | Hauptperspektive |
+| DB-Rolle (`user_role`-Enum, `0001_core.sql`) | Welt | Anzeigename im UI | Hauptperspektive |
 |---|---|---|---|
-| `buyer` | Käufer-Welt | **Käufer** (intern) / nach außen „Sie" / kein Etikett | sucht Höfe, sieht Verfügbarkeit, reserviert, zahlt am SB-Stand |
-| `producer` | Erzeuger-Welt | **Erzeuger** (auch: „Ihr Betrieb", „Ihr Hof") | pflegt Hof, Produkte, Verfügbarkeit, Abholfenster, Reservierungen, Einnahmen |
+| `kaeufer` | Käufer-Welt | **Käufer** (intern) / nach außen „Sie" / kein Etikett | sucht Höfe, sieht Verfügbarkeit, reserviert, zahlt am SB-Stand |
+| `erzeuger` | Erzeuger-Welt | **Erzeuger** (auch: „Ihr Betrieb", „Ihr Hof") | pflegt Hof, Produkte, Verfügbarkeit, Abholfenster, Reservierungen, Einnahmen |
 | `staff` | Plattform-Welt | **Staff** / „Support" (kundennah) | Hof-Verifizierung, Eskalation, Support — technische Sprache intern OK |
 | `owner` | Plattform-Welt | **Owner** / „Betreiber" | oberste Steuerung — interne Konsole, technische Sprache OK |
 
 > **Wichtig:** Der **Käufer** wird im UI **nie** mit einem Rollen-Etikett angesprochen — er ist einfach der
 > Besucher/Nutzer. „Käufer" ist ein interner Begriff (Doku/DB), kein sichtbares Label.
-> **Owner ≠ org_owner:** „Owner" = Plattform-Betreiber (plattformweit). „Betriebsinhaber" (`org_owner`) = Inhaber
-> **eines** Hofes (mandantenlokal). Im UI: Plattform → „Owner/Betreiber"; Erzeuger-Org → „Betriebsinhaber".
+> **Owner ≠ Betriebsinhaber:** „Owner" = Plattform-Betreiber (plattformweit, `user_role='owner'`). „Betriebsinhaber" = Inhaber
+> **eines** Hofes (mandantenlokal). Org-Mitgliedschaft liegt real in `org_members.role` (`user_role`-Enum: `kaeufer`/`erzeuger`/`staff`/`owner`); ein dediziertes `org_owner`/`org_member`-Enum ist Ziel-Ausbau, in der aktuellen Migration **nicht** vorhanden. Im UI: Plattform → „Owner/Betreiber"; Erzeuger-Org → „Betriebsinhaber".
 
 ---
 
@@ -72,8 +72,8 @@ Diese Tabelle ist die **Wortbank**. Linke Spalte = sichtbarer Begriff; rechte = 
 | **Hof** / **Betrieb** | Erzeuger-Betrieb als Ganzes (Bauernhof, Imkerei, Hofmetzgerei, Gärtnerei, Manufaktur) | `orgs` (Tenant) |
 | **Hofladen** | Verkaufsstandort eines Hofes (kann mehrere pro Hof geben: Hauptstand + Filiale) | `farms` |
 | **SB-Hofladen** / **SB-Stand** | Unbemannter Selbstbedienungs-Stand mit Vertrauenskasse — Ziel des Bezahl-USP | `farms.is_self_service` |
-| **Erzeuger** | Mensch/Betrieb, der anbietet (Landwirt, Imker, Gärtner, Manufaktur) | `profiles.role = 'producer'` |
-| **Käufer** (intern) / „Sie" (UI) | Verbraucher, Familie, regionale Gastronomie | `profiles.role = 'buyer'` |
+| **Erzeuger** | Mensch/Betrieb, der anbietet (Landwirt, Imker, Gärtner, Manufaktur) | `profiles.role = 'erzeuger'` |
+| **Käufer** (intern) / „Sie" (UI) | Verbraucher, Familie, regionale Gastronomie | `profiles.role = 'kaeufer'` |
 | **Produkt** | Erzeugnis eines Hofes (Eier, Honig, Kartoffeln, Käse …) | `products` |
 | **Verfügbarkeit** | Erzeuger-gepflegter Bestands-/Saisonstatus eines Produkts | `availability` |
 | **Reservierung** | Käufer-Vorbestellung zur Abholung — **kein** Kaufvertrag | `reservations` |
@@ -220,10 +220,12 @@ Daher im **Reservierungs-Flow**:
 
 ### 4.3 Erzeuger-Subrollen (im UI)
 
-| Intern (`org_members.org_role`) | UI-Label | Sichtbarer Umfang |
+> **Produkt-Konzept (Ziel-Ausbau), noch nicht im Schema:** Die aktuelle Migration kennt **kein** `org_members.org_role`-Enum — `org_members.role` ist vom Typ `user_role` (Default `'erzeuger'`). Die folgende Inhaber/Mitarbeiter-Unterscheidung ist die **geplante** UI-Subrolle.
+
+| Konzept (Ziel-Ausbau) | UI-Label | Sichtbarer Umfang |
 |---|---|---|
-| `org_owner` | **Betriebsinhaber** | alles inkl. Abo/Billing, Auszahlungskonto, Team |
-| `org_member` | **Mitarbeiter** | Produkte/Verfügbarkeit/Reservierungen — **kein** Billing/Team/Konto |
+| Betriebsinhaber (`org_owner`) | **Betriebsinhaber** | alles inkl. Abo/Billing, Auszahlungskonto, Team |
+| Mitarbeiter (`org_member`) | **Mitarbeiter** | Produkte/Verfügbarkeit/Reservierungen — **kein** Billing/Team/Konto |
 
 ### 4.4 Erzeuger Zero-States
 
@@ -354,14 +356,14 @@ keine Ausrufezeichen-Ketten; keine Deko-Emojis; Zahlen/Status konkret („Wenig"
 ## 11 · Zulässigkeitsliste — technische Begriffe, die intern bleiben (nie im UI)
 
 ```
-profiles.role: buyer | producer | staff | owner   (DB-Enum)
+profiles.role: kaeufer | erzeuger | staff | owner  (Enum user_role)
 orgs, farms, products, availability, reservations  (DB-Tabellen)
 pickup_windows, sb_payments, receipts, favorites   (DB-Tabellen)
 farms.is_self_service, farms.verification_status    (DB-Spalten)
 availability.status: available | low | soon | out   (DB-Enum)
 reservations.status: requested | confirmed | picked_up | cancelled | expired
 sb_payments.status: initiated | paid | failed | refunded
-org_members.org_role: org_owner | org_member
+org_members.role: user_role (kaeufer | erzeuger | staff | owner; Default erzeuger)
 /api/... · Edge Functions (Deno) · RLS-Policies · Audit-Namespace
 ```
 

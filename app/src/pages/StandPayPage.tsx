@@ -15,6 +15,7 @@ export function StandPayPage() {
   const [loading, setLoading] = useState(true)
   const [qty, setQty] = useState<Record<string, number>>({})
   const [contact, setContact] = useState('')
+  const [support, setSupport] = useState(0)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ kind: 'info' | 'err'; text: string } | null>(null)
 
@@ -28,7 +29,9 @@ export function StandPayPage() {
   const payable = farm ? farm.products.filter((p) => p.availability !== 'out') : []
   const items = payable.filter((p) => (qty[p.id] ?? 0) > 0).map((p) => ({ product: p, quantity: qty[p.id] }))
   const total = items.reduce((s, i) => s + i.product.price * i.quantity, 0)
+  const grandTotal = total + support
   const set = (id: string, n: number) => setQty((q) => ({ ...q, [id]: Math.max(0, Math.min(50, n)) }))
+  const eur = (n: number) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
 
   async function pay() {
     if (!farm || items.length === 0) return
@@ -37,6 +40,7 @@ export function StandPayPage() {
     const err = await goToCheckout({
       mode: 'sb_basket', farmId: farm.id, contact: contact || undefined,
       items: items.map((i) => ({ productId: i.product.id, quantity: i.quantity })),
+      support: support > 0 ? support : undefined,
       successUrl: base + '?ok=1', cancelUrl: base,
     })
     if (err) {
@@ -96,13 +100,58 @@ export function StandPayPage() {
                 <input id="pp-mail" className="lbc-input" type="email" inputMode="email" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="name@beispiel.de" />
               </div>
 
-              <div className="pay-total">
-                <span>Summe ({items.length} {items.length === 1 ? 'Position' : 'Positionen'})</span>
-                <strong>{total.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</strong>
+              <div className="support" style={{ marginTop: 18 }}>
+                <div className="lbc-label" id="pp-support-label">Plattform unterstützen <span style={{ textTransform: 'none', letterSpacing: 0 }}>(freiwillig)</span></div>
+                <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                  Mit einem freiwilligen Beitrag hältst du LokaleBauernConnect für die Höfe günstig. Kein Trinkgeld an den Hof — Unterstützung der Plattform.
+                </p>
+                <div className="support__chips" role="group" aria-labelledby="pp-support-label" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+                  {[0, 0.5, 1, 2].map((v) => (
+                    <button
+                      type="button"
+                      key={v}
+                      aria-pressed={support === v}
+                      className={`lbc-btn lbc-btn--sm ${support === v ? 'lbc-btn--primary' : 'lbc-btn--ghost'}`}
+                      onClick={() => setSupport(v)}
+                    >
+                      {v === 0 ? 'Nein danke' : eur(v)}
+                    </button>
+                  ))}
+                  <input
+                    className="lbc-input support__custom"
+                    type="number"
+                    min={0}
+                    max={1000}
+                    step={0.5}
+                    inputMode="decimal"
+                    aria-label="Eigener Unterstützungsbetrag in Euro"
+                    placeholder="€ frei"
+                    style={{ width: 110 }}
+                    value={support ? String(support) : ''}
+                    onChange={(e) => setSupport(Math.max(0, Math.min(1000, Number(e.target.value) || 0)))}
+                  />
+                </div>
               </div>
 
+              <div className="pay-total">
+                <span>Summe ({items.length} {items.length === 1 ? 'Position' : 'Positionen'})</span>
+                <strong>{eur(total)}</strong>
+              </div>
+              {support > 0 && (
+                <div className="pay-total pay-total--sub">
+                  <span>Unterstützung der Plattform</span>
+                  <strong>{eur(support)}</strong>
+                </div>
+              )}
+              {support > 0 && (
+                <div className="pay-total pay-total--grand">
+                  <span>Gesamt</span>
+                  <strong>{eur(grandTotal)}</strong>
+                </div>
+              )}
+
               <button className="lbc-btn lbc-btn--primary lbc-btn--block lbc-btn--lg" onClick={pay} disabled={busy || items.length === 0}>
-                {busy ? 'Weiterleitung …' : 'Jetzt sicher bezahlen'}
+                {busy ? 'Weiterleitung …' : `Jetzt ${eur(grandTotal)} sicher bezahlen`}
               </button>
               <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
                 Bezahlung über Stripe — Karte, SEPA, PayPal, Apple/Google Pay. Zahlung geht direkt an den Hof.

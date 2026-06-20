@@ -16,6 +16,8 @@ export interface CheckoutSbBasket {
   mode: 'sb_basket'
   farmId: string
   items: { productId: string; quantity: number }[]
+  /** Freiwilliger Unterstuetzungsbeitrag des Kaeufers an die Plattform (in EUR). */
+  support?: number
   contact?: string
   successUrl?: string
   cancelUrl?: string

@@ -128,11 +128,10 @@ npm install zod        # Schema-Validierung für ProductForm + Edge Functions (a
 ```
 # Käufer
 http://localhost:5409/?plz=49074&kategorie=Honig&sort=distance     # A: Finder mit Deep-Link-Kontext
-http://localhost:5409/saison                                       # D: Saison-Radar (jetzt-in-Saison)
+http://localhost:5409/                                             # D: Saison-Radar (Banner + „Nur Saison-Höfe"-Filter im Finder)
 
 # Erzeuger (nach Login/Rolle erzeuger; im Seed-Modus simuliert „mein Hof")
-http://localhost:5409/erzeuger/produkte                            # B: Verfügbarkeit-Selbstpflege
-http://localhost:5409/erzeuger/reservierungen                      # C: eingehende Reservierungen + Status
+http://localhost:5409/hof/:farmId                                  # B+C: Erzeuger-Selbstpflege (Verfügbarkeit) + eingehende Reservierungen (ProducerPage)
 ```
 
 ### 2.4 Supabase-Migration + Edge Functions (NUR mit Owner-Freigabe — Account/Kosten)

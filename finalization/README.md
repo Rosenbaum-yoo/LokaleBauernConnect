@@ -48,19 +48,19 @@ Ziel ist das **Doppel-Ziel aus `PHASEN.md`**: sofort benutzbar (Finder → Reser
 |---:|---|---|---|
 | 0 | `WAVE_00_baseline.md` | Repo, Vite/TS, Editorial-Design-System, Konventionen | Baseline |
 | 1 | `WAVE_01_release_hygiene.md` | Cloudflare-Pages-Config, Env/Secrets, Lint/Build-CI | Hygiene |
-| 2 | `WAVE_02_datenmodell_rls.md` | `orgs, profiles, farms, products, availability, reservations` — additiv, RLS deny-by-default + **Isolationstest** | **Isolations-Gate** |
-| 3 | `WAVE_03_rollen_sichtbarkeit.md` | Käufer / Erzeuger / Staff — RBAC, Surface-Sichtbarkeit | Rollen-Gate |
-| 4 | `WAVE_04_kernprodukt.md` | A Hofladen-Finder · B Verfügbarkeit (Erzeuger-Selbstpflege) · C Reservierung/Abholfenster · D Saison-Radar | Kernflow-Gate |
-| 5 | `WAVE_05_owner_kpi.md` | Owner-Dashboard: Reservierungen, aktive Höfe, Conversion | KPI-Gate |
+| 2 | `WAVE_02_datamodel_rls.md` | `orgs, profiles, farms, products, availability, reservations` — additiv, RLS deny-by-default + **Isolationstest** | **Isolations-Gate** |
+| 3 | `WAVE_03_roles_visibility.md` | Käufer / Erzeuger / Staff — RBAC, Surface-Sichtbarkeit | Rollen-Gate |
+| 4 | `WAVE_04_core_business.md` | A Hofladen-Finder · B Verfügbarkeit (Erzeuger-Selbstpflege) · C Reservierung/Abholfenster · D Saison-Radar | Kernflow-Gate |
+| 5 | `WAVE_05_kpi_dashboard.md` | Owner-Dashboard: Reservierungen, aktive Höfe, Conversion | KPI-Gate |
 | 6 | `WAVE_06_security.md` | Supabase Auth, Turnstile, RLS-Härtung, Rate-Limits | Security-Gate |
-| 7 | `WAVE_07_staff_support.md` | Hof-Verifizierung, Eskalation, Support-Tickets (Kern) | Support-Gate |
+| 7 | `WAVE_07_admin_centers.md` | Hof-Verifizierung, Eskalation, Support-Tickets (Kern) | Support-Gate |
 | 8 | `WAVE_08_bonus_credits.md` | *abwägen* — evtl. Post-Launch | optional |
 | 9 | `WAVE_09_billing.md` | Stripe-Abo (Erzeuger) + Vorbereitung **SB-Bezahl-USP** | Gate 10 |
 | 10 | `WAVE_10_premium_ux.md` | Editorial-Politur, Mobile/PWA, Leerzustände, A11y, Copy | Polish-Gate |
-| 11 | `WAVE_11_db_haertung.md` | Indizes, Pagination, Query-Performance, N+1 | DB-Gate |
+| 11 | `WAVE_11_database.md` | Indizes, Pagination, Query-Performance, N+1 | DB-Gate |
 | 12 | `WAVE_12_qa_tests.md` | Unit/Integration/E2E + Cross-Org-Negativtests | QA-Gate |
 | 13 | `WAVE_13_observability.md` | Sentry, strukturierte Logs, Health-Checks | Observability-Gate |
-| 14 | `WAVE_14_legal_dsgvo.md` | Impressum, Datenschutz, AGB, Lebensmittel-Hinweis, AVV/TOMs | Legal-Gate |
+| 14 | `WAVE_14_legal_dataprotection.md` | Impressum, Datenschutz, AGB, Lebensmittel-Hinweis, AVV/TOMs | Legal-Gate |
 | 15 | `WAVE_15_demo_onboarding.md` | Erzeuger-Onboarding-Wizard (datengetrieben/Zod), gekennzeichnete Demo-Daten | Onboarding-Gate |
 | Final | `99_GOLIVE_GATE.md` | Phase-1-Gesamt-Gate + Definition of Done | **Go-Live Phase 1** |
 

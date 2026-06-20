@@ -35,23 +35,25 @@ LokaleBauernConnect verarbeitet personenbezogene Daten dreier strikt getrennter 
 
 Alle personenbezogenen Daten werden in vier Kategorien klassifiziert. Die Kategorie steuert **Export**, **Löschverhalten** und **Aufbewahrung** (Abschnitte 2–4). Dies ist die maschinenlesbare Grundlage des Verzeichnisses der Verarbeitungstätigkeiten (VVT).
 
+> **Legende:** *(Ist)* = real im Schema vorhanden (`app/supabase/migrations/0001`–`0004`); *(Soll)* = geplante additive Tabelle/Spalte (noch nicht migriert).
+
 ### Kategorie A — Direkt personenbezogen
-- **Tabellen:** `profiles` (Käufer/Erzeuger/Staff), `buyer_contacts`, `farm_contacts`, `reservations` (Name/Kontakt des Käufers), `saison_alerts`/`favorites` (sofern nutzergebunden), `producer_invites`.
+- **Tabellen:** `profiles` *(Ist; Käufer/Erzeuger/Staff/Owner — `role`-Enum `kaeufer`/`erzeuger`/`staff`/`owner`)*, `reservations` *(Ist; `name`/`contact` des Käufers)*, `waitlist` *(Ist; `name`/`email`/`plz`/`ort`)*, `farm_applications` *(Ist; `name`/`email`/`phone` des Bewerbers)*, `bounties` *(Ist; `author_contact`)*, `reviews` *(Ist; `author_name`, sofern gesetzt)*. *(Soll: `favorites`/`saison_alerts`, sofern nutzergebunden.)*
 - **Löschverhalten:** Felder überschreiben (`[Gelöscht]` / `NULL`), Identität entkoppeln.
 - **Export:** vollständig.
 
 ### Kategorie B — Geschäftlich/funktional notwendig (referenziert PII)
-- **Tabellen:** `orgs` (Betrieb), `farms`, `org_members`, `products`, `availability`, `pickup_windows`, `reservation_items`.
+- **Tabellen:** `orgs` *(Ist; Betrieb)*, `farms` *(Ist)*, `org_members` *(Ist, 0003)*, `org_locations` *(Ist, 0003; Standorte/SB-Stände)*, `products` *(Ist)*, `credits_ledger` *(Ist, 0003)*. *(Soll: eigene `availability`/`pickup_windows`-Tabellen — derzeit als `products.availability` bzw. `farms.pickup_windows[]` integriert.)*
 - **Löschverhalten:** Personenreferenzen anonymisieren — Fremdschlüssel bleibt erhalten (Datenintegrität/Statistik), Name/Kontakt → `[Anonymisiert]`. Betriebsdaten eines weiterbestehenden Erzeugers bleiben unberührt.
 - **Export:** vollständig (nur die den Betroffenen betreffenden Zeilen).
 
 ### Kategorie C — Aufbewahrungspflichtig (HGB §257 / AO §147 / Zahlungsnachweis)
-- **Tabellen:** `payments`/`sb_transactions` (SB-Bezahlung), `payouts`/`connect_transfers`, `subscriptions`, `invoices`, `billing_usage`, **`audit_log`**.
+- **Tabellen:** `sb_payments` *(Ist, 0002; SB-Bezahlung)*, `subscriptions` *(Ist, 0002; Erzeuger-Abo)*, **`audit_log`** *(Ist, 0001)*. *(Soll: separate `payouts`/`connect_transfers` bei Stripe-Connect-Ausbau, `invoices`, `billing_usage`.)*
 - **Löschverhalten:** **NICHT löschbar** während der gesetzlichen Frist (Belegfunktion); nach Fristablauf Retention-Cleanup. Bei Betroffenenlöschung während laufender Frist: **Anonymisierung der personenbezogenen Felder, soweit ohne Belegverlust möglich**; ansonsten Einschränkung der Verarbeitung (Art. 18) statt Löschung, mit dokumentierter Begründung.
 - **Export:** vollständig, mit ausdrücklichem Hinweis auf bestehende Aufbewahrungspflicht.
 
 ### Kategorie D — Technische Metadaten / TTL
-- **Tabellen:** `sessions` (Auth, von Supabase verwaltet), `idempotency_keys` (Stripe-Webhook-Dedup), `rate_limit_counters`, `notifications` (gelesen), `turnstile_verifications` (kurzlebig).
+- **Tabellen:** `payment_events` *(Ist, 0002; Stripe-Webhook-Event-Dedup/Idempotenz)*, Auth-Sessions *(von Supabase Auth/GoTrue verwaltet)*. *(Soll: `rate_limit_counters`, `notifications`, `turnstile_verifications` — sofern als Tabelle realisiert; Rate-Limit aktuell Edge/Cloudflare-seitig.)*
 - **Löschverhalten:** sofort/automatisch löschbar.
 - **Retention:** TTL-basiert, automatisch bereinigbar (Abschnitt 4).
 
@@ -63,10 +65,12 @@ Alle personenbezogenen Daten werden in vier Kategorien klassifiziert. Die Katego
 
 **Selbstbedienung zuerst, planunabhängig.** Auskunft und Datenportabilität sind **gesetzliche Pflicht** — niemals hinter einem Plan-Lock (`demo/basis/plus/pro/individuell`). Jeder authentifizierte Nutzer kann seinen vollständigen Datensatz selbst exportieren.
 
-| Endpunkt (Edge Function) | Auth | Beschreibung |
+> **Ist-Stand:** Aktuell sind die Edge Functions `create-checkout` und `stripe-webhook` implementiert (`app/supabase/functions/`). Die folgenden DSGVO-Export-/Lösch-Funktionen sind **Soll** (geplant, vor Go-Live-DSGVO-Gate).
+
+| Endpunkt (Edge Function) *(Soll)* | Auth | Beschreibung |
 |---|---|---|
 | `GET /functions/v1/me/export` | Session (Käufer/Erzeuger/Staff) | Vollständiger DSGVO-Export des **eigenen** Datensatzes als **JSON** (maschinenlesbar, Art. 20) + lesbares **PDF/CSV**-Beiblatt (Art. 15). Enthält alle Kategorien A–C, die den Anfragenden betreffen. |
-| `GET /functions/v1/org/export` | Erzeuger `org_owner` | Org-weiter Export des **eigenen Betriebs** (Produkte, Verfügbarkeit, Reservierungen am Betrieb, SB-Transaktionen) — RLS-org-gescoped. |
+| `GET /functions/v1/org/export` | Erzeuger (Org-Mitglied) | Org-weiter Export des **eigenen Betriebs** (Produkte, Reservierungen am Betrieb, SB-Zahlungen `sb_payments`) — RLS-org-gescoped via `is_org_member(org_id)`. |
 
 **Garantien:**
 - **Org-Scope (Produktionspfeiler 1):** Der Export liest ausschließlich Zeilen, die der Anfragende per RLS sehen darf. Fremd-Org = leere Menge, nie Fremddaten. Implementierung in der Edge Function unter **vorheriger** Rechteprüfung (`auth.uid()` → Rolle → Org), nicht über service-role-Vollabzug ohne Filter.
@@ -79,7 +83,7 @@ Alle personenbezogenen Daten werden in vier Kategorien klassifiziert. Die Katego
 
 ## 3 · Löschung & Anonymisierung (Art. 17 DSGVO)
 
-**Soft-Delete als Standard, Anonymisierung als Löschverfahren.** Jede Tabelle hat `deleted_at` (Kanon). „Recht auf Vergessenwerden" wird über **kategoriebewusste Anonymisierung** umgesetzt, nicht über blindes Hard-Delete, das referenzielle Integrität und Belegpflichten verletzen würde.
+**Soft-Delete als Standard, Anonymisierung als Löschverfahren.** Soft-Delete via `deleted_at` ist der Kanon-Zielzustand für katalog-/betriebsbezogene Tabellen. **Ist-Stand:** `deleted_at` ist auf `orgs`, `farms` und `org_locations` vorhanden; weitere personen-/belegbezogene Tabellen (`reservations`, `reviews`, `bounties`, `farm_applications`, `sb_payments`, `subscriptions`, `waitlist`) erhalten die Soft-Delete-/Anonymisierungsspalte **additiv (Soll)** im Zuge des DSGVO-Lösch-Ausbaus. „Recht auf Vergessenwerden" wird über **kategoriebewusste Anonymisierung** umgesetzt, nicht über blindes Hard-Delete, das referenzielle Integrität und Belegpflichten verletzen würde.
 
 ### Ablauf (verbindlich)
 
@@ -110,14 +114,14 @@ Datenminimierung über Zeit: Daten werden nur so lange aufbewahrt, wie sie für 
 
 | Datentyp / Tabelle | Kategorie | Frist | Rechtsgrundlage / Zweck |
 |---|---|---|---|
-| `payments` / `sb_transactions`, `invoices`, `payouts`, `subscriptions` | C | **10 Jahre** | HGB §257 Abs. 4, AO §147 (Buchungsbelege) |
-| `billing_usage` (abrechnungsrelevant) | C | **6 Jahre** | HGB §257 (Handelsbriefe/sonstige Unterlagen) |
-| `audit_log` (sicherheits-/nachweisrelevant) | C | **10 Jahre** | Nachweis-/Rechenschaftspflicht (Art. 5 Abs. 2), Belegfunktion |
-| `reservations` (abgeschlossen/storniert) | A/B | **90 Tage** nach Abholfenster | Streitfall-Kulanz; danach Anonymisierung |
-| `producer_invites` (abgelaufen/ungenutzt) | A | **90 Tage** | Onboarding-Sicherheit |
-| `notifications` (gelesen) | D | **180 Tage** | Komfort/Verlauf |
-| `sessions` (abgelaufen) | D | **14 Tage** | Auth-Hygiene (Supabase-Default respektiert) |
-| `idempotency_keys` (Stripe-Dedup) | D | **7 Tage** | Webhook-Idempotenz (Fenster) |
+| `sb_payments`, `subscriptions` *(Ist)* | C | **10 Jahre** | HGB §257 Abs. 4, AO §147 (Buchungsbelege) |
+| `credits_ledger` *(Ist; abrechnungsrelevant)* | C | **6 Jahre** | HGB §257 (Handelsbriefe/sonstige Unterlagen) |
+| `audit_log` *(Ist; sicherheits-/nachweisrelevant)* | C | **10 Jahre** | Nachweis-/Rechenschaftspflicht (Art. 5 Abs. 2), Belegfunktion |
+| `reservations` *(Ist; abgeschlossen/storniert)* | A/B | **90 Tage** nach Abholfenster | Streitfall-Kulanz; danach Anonymisierung |
+| `farm_applications` *(Ist; abgelehnt/ungenutzt)* | A | **90 Tage** | Onboarding-Sicherheit |
+| `waitlist` *(Ist; nach Aktivierung/Inaktivität)* | A | **180 Tage** | Komfort/Verlauf; danach Anonymisierung |
+| Auth-Sessions (abgelaufen) | D | **14 Tage** | Auth-Hygiene (Supabase-Default respektiert) |
+| `payment_events` *(Ist; Stripe-Dedup)* | D | **7 Tage** | Webhook-Idempotenz (Fenster) |
 | `rate_limit_counters` / `turnstile_verifications` | D | **24 h** | Spam-/Abuse-Schutz |
 
 | Endpunkt | Permission | Beschreibung |
@@ -234,7 +238,7 @@ Der Vermittler-Status muss an jedem rechtsrelevanten Berührungspunkt sichtbar s
 
 ## 10 · Audit-Vollständigkeit (Rechenschaftspflicht, Art. 5 Abs. 2 · Produktionspfeiler 5)
 
-**Grundsatz:** **Jede** mutierende Aktion erzeugt einen `audit_log`-Eintrag — **wer / was / warum / wann / Org-Scope / Ergebnis**. Das Audit-Log ist **append-only/unabschaltbar** (Kat. C, RLS-geschützt, org-gefiltert). Keine Mutation ohne Audit (Kanon-Verbot). `reason` ist **Pflicht** bei kritischen Aktionen.
+**Grundsatz:** **Jede** mutierende Aktion erzeugt einen `audit_log`-Eintrag — **wer / was / warum / wann / Org-Scope / Ergebnis**. Das Audit-Log ist **append-only/unabschaltbar** (Kat. C; RLS aktiv, **keine** anon/auth-Policy → Lesen/Schreiben nur `service_role`; Soll: SELECT-Pfad Owner voll / Staff org-gescoped). Keine Mutation ohne Audit (Kanon-Verbot). `reason` ist **Pflicht** bei kritischen Aktionen.
 
 ### 10.1 Pflicht-Events (Compliance-relevanter Auszug, Namespace `compliance.*` / domänen-Namespaces)
 
@@ -243,8 +247,8 @@ Der Vermittler-Status muss an jedem rechtsrelevanten Berührungspunkt sichtbar s
 | **Auth/Identität** | `auth.login` · `auth.login_failed` · `auth.logout` · `mfa.enable` · `mfa.disable` · `mfa.verify` |
 | **Erzeuger/Betrieb** | `farm.create` · `farm.update` · `farm.delete` · `farm.verify` (Staff) · `product.update` · `availability.update` |
 | **Reservierung** | `reservation.create` · `reservation.cancel` |
-| **SB-Bezahlung (USP)** | `payment.intent_created` · `payment.succeeded` · `payment.failed` · `payout.transfer` (Connect) |
-| **Commercial** | `subscription.changed` · `entitlement.granted` (aus Webhook) |
+| **SB-Bezahlung (USP)** | `sb_payment.paid` *(Ist; aus `stripe-webhook`)* · *(Soll: `sb_payment.intent_created` · `sb_payment.failed` · `payout.transfer` bei Connect-Ausbau)* |
+| **Commercial** | `subscription.activated` *(Ist; aus `stripe-webhook`)* · *(Soll: `subscription.changed` · `entitlement.granted`)* |
 | **DSGVO/Compliance** | `compliance.user.anonymized` · `compliance.org.deleted` · `compliance.export.generated` · `compliance.dsgvo_request.created/completed` · `compliance.retention.cleanup` · `compliance.producer.labeling_ack` · `compliance.consent.granted/withdrawn` |
 | **Staff/Owner** | `support.escalation` · jede privilegierte Org-übergreifende Aktion (immer mit `reason`) |
 

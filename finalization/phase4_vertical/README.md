@@ -12,11 +12,11 @@ Phase 1–3 sind **querschnittlich** (Fundament/Kernprodukt, Release-Operatives,
 
 | Strecke | Track-Datei | Charakter | Status (Repo) |
 |---|---|---|---|
-| **A — SB-Bezahlung (USP) ⭐** | `TRACK_A_SB_PAYMENT.md` | Neues Feature, voll-stack (QR → Stripe → Quittung) | Backend vorhanden — QR-Stand-UI offen |
+| **A — SB-Bezahlung (USP) ⭐** | `TRACK_A_SB_PAYMENT.md` | Neues Feature, voll-stack (QR → Stripe → Quittung) | Backend + Korb-UI (`/stand/:farmId`) vorhanden — aktiv sobald Stripe-Keys gesetzt |
 | **B — Interaktive Karte** | `TRACK_B_KARTE.md` | Such-/Entdeck-UX (Leaflet/MapLibre · OSM) | ✅ fertig (2026-06-20) |
-| **C — Saison & Benachrichtigungen** | `TRACK_C_SAISON_BENACHRICHTIGUNGEN.md` | Saison-Radar + Alerts (Lieblingsprodukte/Verfügbarkeit) | Saison-Daten teilweise — Alert-Engine offen |
-| **D — Erzeuger-Self-Service** | `TRACK_D_ERZEUGER_SELFSERVICE.md` | Mobile Verfügbarkeits-/Bestandspflege, Abholfenster | Datenmodell vorhanden — Pflege-UI offen |
-| **E — Datenmodell-Skalierung** | `TRACK_E_DATENMODELL_SKALIERUNG.md` | Infra: Indizes, Pagination, Caching für 300 Höfe | Migrationen-Basis vorhanden — Härtung offen |
+| **C — Saison & Benachrichtigungen** | `TRACK_C_SAISON.md` | Saison-Radar + Alerts (Lieblingsprodukte/Verfügbarkeit) | Saison-Radar fertig (WAVE_04) — Alert-Engine offen |
+| **D — Erzeuger-Self-Service** | `TRACK_D_SELFSERVICE.md` | Mobile Verfügbarkeits-/Bestandspflege, Abholfenster | ✅ fertig (2026-06-20): `/hof/:farmId` (Verfügbarkeit + Reservierungen + druckbarer SB-QR) |
+| **E — Datenmodell-Skalierung** | `TRACK_E_DATABASE.md` | Infra: Indizes, Pagination, Caching für 300 Höfe | Migrationen-Basis vorhanden — Härtung offen |
 
 > ⭐ **Track A ist die geschäftskritische Strecke** — der USP der Plattform und (neben dem Erzeuger-Abo aus WAVE_09) der zweite reale Geldfluss. Siehe Marktstart-Pflicht-Set in `../../PHASEN.md`.
 
@@ -47,13 +47,13 @@ Phase 4 Track E (Skalierung) ────→ vertieft WAVE_11 (DB-Härtung) für
 | `README.md` | Diese Übersicht (Zweck, Reihenfolge, Cross-Cutting) |
 | `TRACK_A_SB_PAYMENT.md` ⭐ | SB-Bezahlung am unbemannten Hofladen: QR am Stand → Stripe → Quittung; Erzeuger-Dashboard (Einnahmen/Schwund). Eigener ADR. |
 | `TRACK_B_KARTE.md` | Interaktive Karte: Leaflet/MapLibre (OSM), Hof-Pins, Cluster, „in der Nähe", Liste/Karte-Umschalter |
-| `TRACK_C_SAISON_BENACHRICHTIGUNGEN.md` | Saison-Radar + Alert-Engine (Verfügbarkeits-/Lieblingsprodukt-Benachrichtigung), Opt-in, DSGVO |
-| `TRACK_D_ERZEUGER_SELFSERVICE.md` | Mobile Erzeuger-Selbstpflege: Verfügbarkeit/Bestand/Preise/Abholfenster |
-| `TRACK_E_DATENMODELL_SKALIERUNG.md` | Indizes, Pagination, N+1-Tilgung, Edge-/CDN-Caching für 300 Höfe und viele Käufer |
+| `TRACK_C_SAISON.md` | Saison-Radar + Alert-Engine (Verfügbarkeits-/Lieblingsprodukt-Benachrichtigung), Opt-in, DSGVO |
+| `TRACK_D_SELFSERVICE.md` | Mobile Erzeuger-Selbstpflege: Verfügbarkeit/Bestand/Preise/Abholfenster |
+| `TRACK_E_DATABASE.md` | Indizes, Pagination, N+1-Tilgung, Edge-/CDN-Caching für 300 Höfe und viele Käufer |
 | `GATES.md` | Track-spezifische Gates (A SB-Payment, C Alerts, D Self-Service, E Skalierung) |
-| `MANUAL_TASKS.md` | Owner-Entscheidungen (Stripe-Connect-Modell, Transaktionsgebühr, Quittungs-/Pflichttexte, Domain) |
+| `MANUAL_TASKS.md` | Owner-Entscheidungen (Stripe-Connect-Modell, Transaktionsgebühr, Mail-Provider, Quittungs-/Pflichttexte, Domain) |
 | `MASTERPROMPTS.md` | Ein Start-Prompt je Track (kanon-konform, kopierbereit) |
-| `CROSS_CUTTING.md` | Berührungspunkte zwischen Tracks (Race Conditions vermeiden) |
+| `CROSS_CUTTING.md` | Berührungspunkte/Kollisionswächter zwischen Tracks (E-Mail-/Migrations-/Geo-Kollisionen) |
 
 ---
 
@@ -72,7 +72,7 @@ Phase 4 Track E (Skalierung) ────→ vertieft WAVE_11 (DB-Härtung) für
 - **Track C/D in eigenen, alternierenden Sessions** — kleinere Wellen, klarer Fokus.
 - **Track E erst bei messbarer Last** (keine spekulative Optimierung — §0.3 „keine Verschwendung").
 
-> **Niemals in derselben Session:** Track A **und** Track C — beide berühren den Benachrichtigungs-/Quittungs-Versand (E-Mail-Provider) und würden sich an gemeinsamen Stellen ins Gehege kommen. Details: `CROSS_CUTTING.md`.
+> **Niemals in derselben Session:** Track A **und** Track C — beide berühren den Benachrichtigungs-/Quittungs-Versand (E-Mail-Provider `supabase/functions/_shared/email.ts`) und würden sich an gemeinsamen Stellen ins Gehege kommen (Cross-Cutting-Regeln s. Abschnitt 7).
 
 ---
 
@@ -112,7 +112,7 @@ Phase 4 Track E (Skalierung) ────→ vertieft WAVE_11 (DB-Härtung) für
 2. `../00_RULES.md` (sofern vorhanden) und `../../PHASEN.md`
 3. **Diese** `README.md`
 4. **Genau eine** Track-Datei (A, B, C, D **oder** E)
-5. Bei Berührungspunkten: `CROSS_CUTTING.md`
+5. Bei Berührungspunkten: Abschnitt 7 (Cross-Cutting) dieser Datei
 6. Relevantes `.claude/memory/` (INDEX + decisions/patterns)
 
 **Subagenten-Andockung (aus `../../AGENTS.md`):**
@@ -128,7 +128,7 @@ Phase 4 Track E (Skalierung) ────→ vertieft WAVE_11 (DB-Härtung) für
 
 ## 7. Cross-Cutting — was über alle Tracks gilt
 
-Diese Querschnitts-Regeln gelten in **jeder** Phase-4-Strecke (Detail-Matrix in `CROSS_CUTTING.md`):
+Diese Querschnitts-Regeln gelten in **jeder** Phase-4-Strecke:
 
 - **Org-Boundary / RLS deny-by-default** — jede Query org-gebunden; fremde Org = 403, nie 200 mit Fremddaten. Gilt für SB-Zahlungen, Alerts, Self-Service-Mutationen, gecachte Sichten.
 - **Zero-State statt Error** — keine 500 bei leeren Daten; leere Arrays + sichtbarer „Noch keine Daten"-Zustand (Karte ohne Höfe, Dashboard ohne Transaktionen, Radar ohne Saisondaten).

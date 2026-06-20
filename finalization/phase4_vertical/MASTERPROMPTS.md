@@ -20,7 +20,7 @@
 > - **A** → `finalization/phase4_vertical/TRACK_A_SB_PAYMENT.md` ⭐
 > - **B** → `finalization/phase4_vertical/TRACK_B_KARTE.md`
 > - **C** → `finalization/phase4_vertical/TRACK_C_SAISON.md`
-> - **D** → `finalization/phase4_vertical/TRACK_D_ERZEUGER_SELFSERVICE.md`
+> - **D** → `finalization/phase4_vertical/TRACK_D_SELFSERVICE.md`
 > - **E** → `finalization/phase4_vertical/TRACK_E_DATABASE.md`
 >
 > Liegt eine referenzierte Track-/Gate-/README-Datei noch nicht vor, ist die **erste Aufgabe** der Session, sie kanonisch anzulegen (Quelle: `README.md` dieser Schicht + `MASTER_INDEX.md` Abschnitt 7, adaptiert auf den fixen Stack) — **nicht** auf eine erfundene Datei verweisen.
@@ -299,7 +299,7 @@ LIES ZUERST (gezielt):
 3.  CLAUDE.md (7 Produktionspfeiler, RBAC, Audit-Pflicht, Frontend-/Backend-Regeln)
 4.  PHASEN.md (Phase 4 Track D — konkretisiert WAVE_04 B/C für Erzeuger mobil) + finalization/01_PRIORITIES.md
 5.  finalization/00_RULES.md + finalization/phase4_vertical/README.md
-6.  finalization/phase4_vertical/TRACK_D_ERZEUGER_SELFSERVICE.md (Wellen + Acceptance)   ← falls noch nicht vorhanden: erste Aufgabe, kanonisch anlegen
+6.  finalization/phase4_vertical/TRACK_D_SELFSERVICE.md (Wellen + Acceptance)   ← falls noch nicht vorhanden: erste Aufgabe, kanonisch anlegen
 7.  finalization/phase4_vertical/CROSS_CUTTING.md (Frische-Signal/Saison-Felder berühren Track C; Migrations-Nummern)
 8.  finalization/phase4_vertical/GATES.md (Track-D-Gate) + docs/releases/PHASE_STATUS.md
 9.  app/supabase/migrations/0001_core.sql (products: price, availability_state, category, owner-write-Policy) + app/src/lib/{data,supabase,types}.ts

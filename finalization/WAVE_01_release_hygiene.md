@@ -37,13 +37,13 @@ WAVE_00 hat ein reproduzierbares Fundament geliefert. WAVE_01 macht daraus ein *
 | `app/.gitignore` | `node_modules`, `dist`, `dist-ssr`, `*.local`, `.env`, `.env.*` (außer `.env.example`), `.DS_Store` | **`.claude` fehlt!** → ergänzen (Kanon: „.claude/ nie ins Release-Artefakt"). |
 | `app/supabase/functions/` | `create-checkout/index.ts`, `stripe-webhook/index.ts`, `_shared/{stripe,email,supabaseAdmin,cors}.ts`, `.env.example` | Lesen **server-seitige Secrets** → eigene Secret-Klasse, vom Frontend-Bundle fern, separate Deno-Toolchain. |
 | `app/supabase/functions/.env.example` | vorhanden | als Edge-Secret-Vorlage referenzieren; Gate prüft secret-frei. |
-| `.github/workflows/ci.yml` | **existiert nicht** | **Neu anlegen** (von Grund auf, kanon-konform — nicht „härten"). |
+| `.github/workflows/ci.yml` | **vorhanden** (Job `app`: `working-directory: app`, Node 20, `npm ci` → `typecheck` → `test` → `build`) | Frontend-CI steht; **offen:** Lint-/Format-Check + Artefakt-Hygiene-Gate + Edge/Deno-Job additiv ergänzen. |
 | `app/public/_redirects` | **existiert nicht** | Für SPA-Deep-Link-Fallback neu anlegen. |
 | `app/.nvmrc` / `app/.node-version` | **nicht vorhanden** | Node-20-Pin für lokal/CI/Cloudflare-Parität neu anlegen. |
 | `app/eslint.config.js` | **nicht vorhanden** | ESLint flat config neu (Edge Functions ausgenommen). |
 | `app/scripts/` | **nicht vorhanden** | Hygiene-Gate-Skript neu. |
 
-> **Dokumentierte Abweichung zum Blueprint:** Eine strukturelle TempConnect-Referenz *härtet* eine bestehende `ci.yml`; **hier existiert keine CI**. Wir bauen sie architekturkonform neu (GitHub Actions · npm fürs Frontend · Deno für Edge). Begründung hier festgehalten, damit die Lücke nachvollziehbar bleibt (kein stiller Architekturwechsel).
+> **Dokumentierte Abweichung zum Blueprint:** Eine strukturelle TempConnect-Referenz *härtet* eine bestehende `ci.yml`; hier wurde sie architekturkonform **neu gebaut** und liegt unter `.github/workflows/ci.yml` (GitHub Actions · `working-directory: app` · Node 20 · `npm ci` → `npm run typecheck` → `npm test` → `npm run build`). Edge-/Deno-Tests folgen additiv. Begründung hier festgehalten, damit der bewusste Neubau nachvollziehbar bleibt (kein stiller Architekturwechsel).
 
 ---
 

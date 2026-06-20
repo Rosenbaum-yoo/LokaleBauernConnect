@@ -56,7 +56,7 @@ Dieses Dokument beschreibt **ausschließlich** das **Erzeuger-Onboarding** der P
 
 | Phase | Auslöser | Server-Effekt | Sichtbarkeit |
 |---|---|---|---|
-| **Registrierung** | Erzeuger meldet sich an (`/erzeuger/registrieren`) | Supabase Auth User; Trigger `on_auth_user_created` legt `profiles` (Default `role='buyer'`) an; Edge Function `producer-onboarding-start` setzt `role='producer'`, legt **Org** (`orgs`, `plan='demo'`) + `org_members(org_role='org_owner')` an (service role, auditiert) | nur Erzeuger |
+| **Registrierung** | Erzeuger meldet sich an (`/erzeuger/registrieren`) | Supabase Auth User; Trigger `on_auth_user_created` legt `profiles` (Default `role='kaeufer'`) an; Edge Function `producer-onboarding-start` setzt `role='erzeuger'`, legt **Org** (`orgs`, `plan='demo'`) + `org_members(role='erzeuger')` an (service role, auditiert) | nur Erzeuger |
 | **Wizard** | Erzeuger durchläuft Schritte 1–9 | je Schritt: Zod-Validierung an der Edge, Upsert auf `farms`/`products`/`availability` (Status bleibt `draft`), Fortschritt in `producer_onboarding_progress` | nur Erzeuger (RLS), Staff im Ticket |
 | **Einreichung** | `farm.submit` (alle Pflicht-Schritte grün + ≥1 Nachweis) | Vollständigkeits-Re-Validierung (Server), `farms.status: draft → pending_review`, `verification_status: submitted`, Staff-Queue-Eintrag, Audit `farm.submitted` | Erzeuger sieht „In Prüfung" |
 | **Verifizierung** | Staff prüft (eigene Maschine) | `verified` ⇒ `farms.status='published'`, öffentlich + reservierbar; `rejected` ⇒ Begründung, Re-Einreichung möglich | nach `verified`: öffentlich |
@@ -134,9 +134,9 @@ export type OrgPlan = 'demo' | 'basis' | 'plus' | 'pro' | 'individuell'
 | `full_name` | text | ✓ | `min(2).max(120)` | `profiles.full_name` |
 | `phone` | tel | ✓ | `regex(/^[+0-9 ()/-]{6,30}$/)` | `profiles.phone` |
 | `contact_email` | email | ✓ | `string().email()`; = Login-E-Mail vorbefüllt, änderbar | `orgs.contact_email` |
-| `role_in_business` | select | ✓ | `enum(['inhaber','mitarbeiter','vertretung'])` | (nur Onboarding-Kontext; setzt `org_members.org_role`-Vorschlag) |
+| `role_in_business` | select | ✓ | `enum(['inhaber','mitarbeiter','vertretung'])` | (nur Onboarding-Kontext; informativer Inhaber/Mitarbeiter-Vorschlag — **nicht** schemawirksam; `org_members.role` bleibt `user_role`) |
 
-> Die **Rolle** (`profiles.role='producer'`, `org_members.org_role='org_owner'`) wird **nicht** aus diesem Feld clientseitig gesetzt — sie wird ausschließlich serverseitig in `producer-onboarding-start` vergeben (`ROLE_AND_PERMISSION_MODEL.md` §6: „Rolle ist nie clientseitig setzbar").
+> Die **Rolle** (`profiles.role='erzeuger'`, `org_members.role='erzeuger'`) wird **nicht** aus diesem Feld clientseitig gesetzt — sie wird ausschließlich serverseitig in `producer-onboarding-start` vergeben (`ROLE_AND_PERMISSION_MODEL.md` §6: „Rolle ist nie clientseitig setzbar").
 
 ### 3.3 — Step 2 · Betrieb & Typ → `orgs` + `farms`
 
@@ -356,7 +356,7 @@ Alle Schreibpfade laufen über Supabase Edge Functions (Deno) mit **Zod an der G
 
 | Endpunkt (Edge Function) | Methode | Auth | Beschreibung |
 |---|---|---|---|
-| `POST /functions/v1/producer-onboarding-start` | POST | Session (frisch registrierter Nutzer) + Turnstile | Hebt `profiles.role → 'producer'`, legt `orgs (plan='demo')` + `org_members(org_role='org_owner')` + leeren `farms`-Draft an (service role, Audit `org.created`/`farm.created`). Idempotent (kein Doppel-Org bei Retry). |
+| `POST /functions/v1/producer-onboarding-start` | POST | Session (frisch registrierter Nutzer) + Turnstile | Hebt `profiles.role → 'erzeuger'`, legt `orgs (plan='demo')` + `org_members(role='erzeuger')` + leeren `farms`-Draft an (service role, Audit `org.created`/`farm.created`). Idempotent (kein Doppel-Org bei Retry). |
 | `GET  /functions/v1/producer-onboarding/state` | GET | Session (producer) | Liefert Schema-Version, gespeicherten Schritt-Zustand, Vollständigkeit, Plan-Limits/Entitlements (Bootstrap des Wizards). Zero-State bei frischem Draft. |
 | `POST /functions/v1/producer-onboarding/save-step` | POST | Session (producer, `owns_farm`) | Validiert **einen** Schritt gegen das passende Zod-Sub-Schema, Upsert auf Ziel-Entity (Status bleibt `draft`), aktualisiert `producer_onboarding_progress`. Gibt Feld-genaue Fehler zurück. |
 | `POST /functions/v1/producer-onboarding/upload-url` | POST | Session (producer, `owns_farm`) | Liefert **signierte** Storage-Upload-URL (privater Bucket `farm-verifications/{org}/{farm}/…`), MIME/Größen-Whitelist serverseitig. |
@@ -394,7 +394,7 @@ Damit Erzeuger das Onboarding **unterbrechen und fortsetzen** können, wird der 
 | `created_at` / `updated_at` / `deleted_at` | TIMESTAMPTZ | s. DB-Konvention | |
 
 - **Unique:** `(farm_id) WHERE deleted_at IS NULL` — ein Fortschritts-Datensatz je Betrieb.
-- **RLS (deny-by-default):** SELECT/INSERT/UPDATE nur `owns_farm(farm_id) AND current_role_kind()='producer'`; Staff lesend im Ticket-Kontext (`is_platform_staff()`); DELETE nur service role. Spiegelt das Muster aus `DATABASE_MODEL.md` §7 / `ROLE_AND_PERMISSION_MODEL.md` §3.2.
+- **RLS (deny-by-default):** SELECT/INSERT/UPDATE nur `owns_farm(farm_id) AND current_role_kind()='erzeuger'`; Staff lesend im Ticket-Kontext (`is_platform_staff()`); DELETE nur service role. Spiegelt das Muster aus `DATABASE_MODEL.md` §7 / `ROLE_AND_PERMISSION_MODEL.md` §3.2.
 - **DSGVO-Kategorie:** A (referenziert PII über `user_id`) — Migration-Kommentar `-- data_category: A`; in `me/export` enthalten; Retention analog `producer_invites` (90 Tage bei ungenutztem Abbruch, `COMPLIANCE_MODEL.md` §1/§4).
 - **Migration:** additive Migration unter `app/supabase/migrations/` (z. B. `0010_producer_onboarding.sql`: diese Tabelle + `farm_verification_documents` + `consent_log`), RLS + Isolationstest ab Migration #1, dokumentierter Rollback (`CLAUDE.md` Datenbankregeln).
 
@@ -478,7 +478,7 @@ Jede mutierende Onboarding-Aktion schreibt nach `audit_log` (append-only, nur se
 
 ## 10 · Sicherheits- & Stop-Regeln (Onboarding-spezifisch)
 
-- **Rolle/Org nie clientseitig.** `role`, `org_id`, `org_role`, `slug`, `verification_status`, `status` werden ausschließlich serverseitig vergeben/verändert. Client-Versuch → ignoriert/`403`.
+- **Rolle/Org nie clientseitig.** `role`, `org_id`, `slug`, `verification_status`, `status` werden ausschließlich serverseitig vergeben/verändert. Client-Versuch → ignoriert/`403`.
 - **Org-Boundary.** Jeder Save/Upload prüft `owns_farm(farm_id)`; fremde Org = `403`, nie `200` mit Fremddaten (Pfeiler 1, Isolationstest-Pflicht).
 - **Turnstile** an Signup + `producer-onboarding-start` (Bot-/Spam-Schutz öffentlicher/identitätsnaher Einstiegspunkte).
 - **Upload-Härtung.** Privater Bucket, signierte Upload-URLs, MIME-/Größen-Whitelist serverseitig, Dateiname-Normalisierung, kein öffentlicher Lesezugriff.
@@ -501,7 +501,7 @@ Funktional, End-to-End, Enterprise-Niveau — alles serverseitig verifiziert.
 - [ ] **Resume:** Abbruch + Wiederkehr verliert nichts; `state` lädt korrekten Schritt + Inhalte; Autosave robust gegen Reload.
 - [ ] **Zero-State:** leere Produkte/Nachweise → freundlicher Zero-State + nächster CTA, nie 500/leerer Screen.
 - [ ] **RLS/Isolation (Pfeiler 1/6):** Org B kann Draft/Progress/Nachweise von Org A weder lesen (0 Zeilen) noch schreiben (403). Käufer/anonyme Nutzer haben keinen Zugriff auf Onboarding-Daten. Isolationstest grün (Plattform- **und** Org-Ebene).
-- [ ] **Rollen-Integrität:** `role`/`org_role`/`status`/`verification_status`/`slug` clientseitig **nicht** setzbar; Privilege-Escalation-Versuch schlägt fehl.
+- [ ] **Rollen-Integrität:** `role`/`status`/`verification_status`/`slug` clientseitig **nicht** setzbar; Privilege-Escalation-Versuch schlägt fehl.
 - [ ] **Audit (Pfeiler 5):** jede Mutation in `audit_log` (wer/was/wann); `reason` bei Staff-Ablehnung Pflicht; unabschaltbar.
 - [ ] **Compliance:** Vermittler-/Lebensmittel-Disclaimer durchgängig sichtbar; Pflicht-Einwilligungen (`literal(true)`) protokolliert (`consent_log`, Version/Zeit/IP); Onboarding-PII in `me/export`/`org/export` enthalten; Retention definiert.
 - [ ] **Migration:** additive Migration (`producer_onboarding_progress`, `farm_verification_documents`, `consent_log`), RLS deny-by-default + Indizes + dokumentierter Rollback; `-- data_category`-Annotation je Tabelle.

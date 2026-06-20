@@ -4,7 +4,9 @@
 >
 > Verbindliche Spezifikation des **Saison-Radars**: kuratierte Monats-Saisondaten (Deutschland) × echte Hof-Verfügbarkeit × Lieblingsprodukt-Alerts. Adaptiert aus dem TempConnect-Blueprint-Aufbau der Spezialmodul-Specs auf die **Hof-Domäne**. **Keine VMS-/Zeitarbeits-Begriffe.**
 >
-> **Quelle der Wahrheit:** Datenmodell `docs/DATABASE_MODEL.md` (Tabellen `products`, `availability`, `waitlist`, `profiles`, `audit_log`) · Zustände `docs/CORE_BUSINESS_STATE_MACHINES.md` · Typen `app/src/lib/types.ts` (`Product`, `ProductCategory`, `Availability`). Dieses Dokument ergänzt diese um den **Saison-Layer**; es dupliziert keine Tabellen, sondern verdrahtet sie.
+> **Quelle der Wahrheit:** Datenmodell `app/supabase/migrations/0001_core.sql` (Tabellen `products`, `waitlist`, `profiles`, `audit_log`; Verfügbarkeit = **Spalte** `products.availability` vom Typ `availability_state`, **keine** eigene `availability`-Tabelle) · Zustände `docs/CORE_BUSINESS_STATE_MACHINES.md` · Typen `app/src/lib/types.ts` (`Product`, `ProductCategory`, `Availability`). Dieses Dokument ergänzt diese um den **Saison-Layer**; es dupliziert keine Tabellen, sondern verdrahtet sie.
+>
+> **Ist-Stand (implementiert):** Die Saison-Anzeige ist heute **datengetrieben in `app/src/lib/season.ts`** (12-Monats-`SEASON`-Map + `seasonNow()`, `monthName()`, `farmHasSeasonOffer()`) und wird im Finder gerendert (Saison-Bar „Jetzt im {Monat} Saison" + „nur Saison"-Filter in `app/src/pages/FinderPage.tsx`). Es gibt **noch keine** `/saison`-Route, **keine** `season_calendar`-Tabelle und **keine** Alert-Dispatch-Edge-Functions — alles unten ab §2 ist **Ziel-Spezifikation** (Phase 4 Track C).
 >
 > **Bezug:** `CLAUDE.md` §„Kritische Produkt-Abgrenzung" + 7 Produktionspfeiler · `PHASEN.md` Phase 1 WAVE_04 D / Phase 4 Track C · `MASTER_INDEX.md` 3 · Produkt & Spezialmodule.
 
@@ -15,7 +17,7 @@
 Der **Saison-Radar** beantwortet die Leitfrage des Plattform-Käufers: *„Was hat gerade Saison — und welcher Hof in meiner Nähe hat es wirklich vorrätig?"* Er verbindet zwei Wahrheiten, die bisher getrennt liegen:
 
 1. **Saison-Wissen (kuratiert, deutschlandweit):** Welche Erzeugnisse haben in welchem Monat in Deutschland natürliche Freiland-/Erntesaison (Saisonkalender). Statische Domänen-Referenzdaten, von der Plattform gepflegt, herkunfts-/methodentransparent.
-2. **Verfügbarkeits-Wahrheit (live, hofgenau):** Was ein konkreter Hof **jetzt** als `available | low | soon | out` führt (`availability`-Tabelle, Erzeuger-Selbstpflege).
+2. **Verfügbarkeits-Wahrheit (live, hofgenau):** Was ein konkreter Hof **jetzt** als `available | low | soon | out` führt (Spalte `products.availability`, Erzeuger-Selbstpflege).
 
 > **Abgrenzung (nicht verletzen, `CLAUDE.md`):** Der Saison-Radar ist **Spezialschicht**, kein Kern. Benachrichtigungs-**Mechanik** (E-Mail/Push-Versand, Templates, Bounce-Handling) stammt aus dem ConnectCore-Kern und wird **nur angedockt** — der Radar liefert das *Was/Wann/An wen*, der Kern das *Wie zugestellt*. Die Plattform **vermittelt** (kein Eigenverkauf, keine Ernährungs-/Gesundheitsberatung). Saisonangaben sind eine redaktionelle Orientierung, **keine Garantie** für Verfügbarkeit, Qualität oder Preis eines einzelnen Hofes — Disclaimer durchgängig (siehe §11).
 
@@ -109,8 +111,8 @@ create trigger season_calendar_set_updated
 |---|---|---|
 | `products.seasonal` (BOOLEAN) | bestehend | Erzeuger markiert ein Produkt als Saisonware → Anzeige-Badge + Radar-Treffer. |
 | `products.produce_key` (TEXT, **additiv, NULL-bar**) | **neu** | Optionaler Feinschlüssel (`'erdbeere'`) für präzise Saison-Brücke; Fallback = `category`. |
-| `products.availability` (`availability_status`) | bestehend | Live-Status `available\|low\|soon\|out` — entscheidet, ob ein Saison-Treffer „jetzt da" oder „bald" ist. |
-| `availability.status` / `valid_from` / `is_current` | bestehend | Datenstand + „ab Datum" für „bald wieder verfügbar". |
+| `products.availability` (`availability_state`) | bestehend | Live-Status `available\|low\|soon\|out` — entscheidet, ob ein Saison-Treffer „jetzt da" oder „bald" ist. |
+| `products.seasonal` / `stock_qty`*/`availability_updated_at`* (*Ziel, additiv) | teils geplant | Datenstand + „ab wann" für „bald wieder verfügbar" (numerische Bestands-/Frische-Felder folgen mit `PRODUKTVERFUEGBARKEIT.md`). |
 | `waitlist` (`source='saison_radar'`, `waitlist_status`) | bestehend | Lieblingsprodukt-Alert-Abos (§4). |
 | `profiles.marketing_opt_in` | bestehend | DSGVO-Einwilligung für eingeloggte Käufer (Saison-Newsletter/Alert). |
 

@@ -109,10 +109,10 @@ LokaleBauernConnect ist **eine von 14 Tochter-Plattformen über einem geteilten 
 | # | Modul | Was es leistet | Wer pflegt | Status (Stand 2026-06-19) |
 |---|---|---|---|---|
 | **A** | **Hofladen-Finder** | Höfe in der Nähe (PLZ-Distanz/Karte), Filter nach Kategorie, Öffnungszeiten, Hof-Detail mit Story | Plattform (Aggregation), Erzeuger (Stammdaten) | ✅ end-to-end (Seed-/Supabase-ready), Port 5409 |
-| **B** | **Produktverfügbarkeit** | Saisonale Produkte + Bestandsstatus (`available · low · soon · out`), **Erzeuger-Selbstpflege** | Erzeuger (mobil) | 🔨 Modell + Badge vorhanden, Self-Service ab WAVE_04/Phase 4 D |
-| **C** | **Reservierung / Abholung** | Vorbestellen eines Produkts, wählbares **Abholfenster**, Bestätigung — **kein** Kaufvertrag | Käufer (anlegen), Erzeuger (Eingang) | ✅ Flow end-to-end (localStorage-Fallback → Edge Function) |
-| **D** | **Saison-Radar** | „Was hat gerade Saison" + Alerts bei Lieblingsprodukten/Verfügbarkeit | Plattform (Aggregation), Käufer (Alerts) | ⬜ geplant (Phase 4 Track C) |
-| **E** | **⭐ SB-Bezahlung (USP)** | Sichere bargeldlose Zahlung am unbemannten Stand: QR → Stripe (Connect) → digitale Quittung | Käufer (zahlt), Erzeuger (Empfänger) | ⬜ geplant (Phase 4 Track A, eigener ADR) |
+| **B** | **Produktverfügbarkeit** | Saisonale Produkte + Bestandsstatus (`available · low · soon · out`), **Erzeuger-Selbstpflege** | Erzeuger (mobil) | ✅ Badge + Selbstpflege live (`ProducerPage` `/hof/:farmId`, `updateProductAvailability`); numerischer Bestand (`stock_qty`) noch geplant |
+| **C** | **Reservierung / Abholung** | Vorbestellen eines Produkts, wählbares **Abholfenster**, Bestätigung — **kein** Kaufvertrag | Käufer (anlegen), Erzeuger (Eingang) | ✅ Flow end-to-end (localStorage-Fallback → Supabase-Insert) |
+| **D** | **Saison-Radar** | „Was hat gerade Saison" + Alerts bei Lieblingsprodukten/Verfügbarkeit | Plattform (Aggregation), Käufer (Alerts) | 🔨 Saison-Anzeige live (`app/src/lib/season.ts` + Finder-Bar/Filter); Alerts + `season_calendar`-Tabelle geplant (Phase 4 Track C) |
+| **E** | **⭐ SB-Bezahlung (USP)** | Sichere bargeldlose Zahlung am unbemannten Stand: QR → Stripe-Checkout → E-Mail-Quittung | Käufer (zahlt), Erzeuger (Empfänger) | ✅ Korb-Bezahlung live (`StandPayPage` `/stand/:farmId`, Edge `create-checkout` Modus `sb_basket` + `stripe-webhook`); Stripe Connect + Transaktionsgebühr geplant (Phase 4 Track A, eigener ADR) |
 
 > **Verbot (Kanon):** Niemals VMS/TempConnect-Begriffe (Vendor Pool, Requisition, Einsatzportal, Stundenzettel, SCC, Hetzner) übernehmen — diese Plattform spricht ausschließlich die **Hof-Domäne**.
 
@@ -133,7 +133,7 @@ flowchart LR
 Die Module bauen funktional aufeinander auf: **Finden → Detail → Verfügbarkeit → Reservieren → (am Stand) Bezahlen.** Saison-Radar bringt Käufer proaktiv zurück. Jedes Modul ist eigenständig nutzbar (Zero-State, Deep-Links) — kein Modul ist eine Sackgasse.
 
 ### 5.2 Datenträger der Module (Schema-Verweis)
-Die Module ruhen auf den additiven Tabellen `orgs · profiles · org_members · farms · products · availability · pickup_windows · reservations · verifications · support_tickets · subscriptions · sb_payments · audit_log · feature_flags` — alle mandantenbezogen (`org_id`, Zeitstempel, `deleted_at`), **RLS deny-by-default ab Migration #1** mit Plattform- **und** Org-Isolationstest. Vollständiges Schema: `docs/DATABASE_MODEL.md` · RLS-Mapping: `docs/ROLE_AND_PERMISSION_MODEL.md §3`.
+Die Module ruhen auf den additiven Tabellen `orgs · profiles · org_members · org_locations · farms · products · reservations · waitlist · reviews · subscriptions · sb_payments · payment_events · bounties · credits_ledger · farm_applications · audit_log` (real angelegt in `app/supabase/migrations/0001_core.sql`–`0004_onboarding.sql`). Verfügbarkeit und Abholfenster sind **Spalten** (`products.availability`, `farms.pickup_windows`), keine eigenen Tabellen. Alle mandantenbezogenen Tabellen tragen `org_id` + Zeitstempel (`farms` zusätzlich `deleted_at`), **RLS deny-by-default ab Migration #1** mit Plattform- **und** Org-Isolationstest. Vollständiges Schema: `docs/DATABASE_MODEL.md` · RLS-Mapping: `docs/ROLE_AND_PERMISSION_MODEL.md §3`.
 
 ---
 
@@ -167,12 +167,12 @@ QR am Stand scannen  →  Artikel/Betrag wählen  →  Stripe-Checkout (gehostet
 - **Differenzierend:** Reine Hof-Verzeichnisse gibt es; **bargeldlose SB-Kasse mit Quittung am unbemannten Stand** ist der kategoriedefinierende Vorsprung.
 
 ### 7.2 Architektur-Garantien (Compliance-fest)
-- **Stripe Connect** leitet das Geld direkt an das Auszahlungskonto des **Erzeugers** — die Plattform **vermittelt nur** und inkassiert nicht selbst (kein Eigenverkauf).
-- **EIN** signaturgeprüfter, **idempotenter** Webhook ist die einzige Wahrheit; Doppelzahlungen sind per Idempotenz-Key ausgeschlossen.
-- Quittung und Entitlement werden **serverseitig** geschrieben; `sb_payments` ist nur über Edge Function (service role) beschreibbar, der Betrieb sieht ausschließlich **eigene** Transaktionen (RLS).
-- **Plan-Gate:** SB-Bezahlung ist Entitlement ab Plan `pro` (vgl. `ROLE_AND_PERMISSION_MODEL.md §5`).
+- **Ist-Stand (live):** Der Bezahlweg läuft über **Stripe Checkout (gehostet)** via Edge Function `create-checkout` (Modus `sb_basket`); der Stand-Korb wird in `sb_payments` (Status `initiated`) angelegt, der Betrag **serverseitig** aus `products.price` neu berechnet (Client-Betrag wird nie übernommen).
+- **EIN** signaturgeprüfter, **idempotenter** Webhook (`stripe-webhook`) ist die einzige Wahrheit: `checkout.session.completed` setzt `sb_payments.status='paid'`; Idempotenz über die Tabelle `payment_events` (Event-ID als PK). Quittung geht per E-Mail (`renderReceipt`/`sendEmail`).
+- `sb_payments` ist nur über Edge Function (service role) beschreibbar; der Betrieb sieht ausschließlich **eigene** Transaktionen (RLS).
+- **Geplant (Phase 4 Track A):** **Stripe Connect** (Geldfluss direkt aufs Erzeuger-Konto), Plattform-Transaktionsgebühr und **Plan-Gate** ab Plan `pro` (vgl. `ROLE_AND_PERMISSION_MODEL.md §5`). Heute läuft der Checkout ohne Connect/Gebühr/Plan-Gate.
 
-> Sequenz-Diagramm + Edge-Function-Vertrag: `docs/ARCHITEKTUR.md §7`. Vollspezifikation: `docs/spezialmodule/SB_BEZAHLUNG_USP.md` (geplant) + eigener ADR. Bau: **Phase 4 Track A**.
+> Sequenz-Diagramm + Edge-Function-Vertrag: `docs/ARCHITEKTUR.md §7`. Vollspezifikation: `docs/spezialmodule/SB_BEZAHLUNG_USP.md` + eigener ADR. Connect-Ausbau: **Phase 4 Track A**.
 
 ---
 
@@ -269,8 +269,9 @@ Wie sich die nicht-verhandelbaren Produktionspfeiler in der **Produkterfahrung**
 | App-Fundament (`app/`, React+Vite+TS, Editorial-Design) | ✅ build grün |
 | Modul A · Hofladen-Finder (Finder + Detail + Reservierung, Seed/Supabase-ready, Port 5409) | ✅ end-to-end |
 | Modul C · Reservierung (Flow + Abholfenster) | ✅ end-to-end (Fallback → Edge Function) |
-| Modul B · Verfügbarkeit (Selbstpflege mobil) | 🔨 Modell vorhanden, Self-Service folgt |
-| Modul D · Saison-Radar · Modul E · SB-Bezahlung (USP) | ⬜ Phase 4 (Track C / Track A) |
+| Modul B · Verfügbarkeit (Selbstpflege mobil) | ✅ Badge + Selbstpflege live (`ProducerPage`); numerischer Bestand folgt |
+| Modul E · SB-Bezahlung (USP, Korb-Checkout) | ✅ live (`StandPayPage` + `create-checkout`/`stripe-webhook`); Connect + Gebühr folgen (Phase 4 Track A) |
+| Modul D · Saison-Radar | 🔨 Anzeige live (`season.ts` + Finder); Alerts folgen (Phase 4 Track C) |
 | Datenmodell + RLS + Isolationstest · Auth · Billing | ⬜ WAVE_02/03/06/09 |
 | Cloudflare-Deploy + Domain + Security-Header | ⬜ Phase 2 (Owner-Freigabe: Account/Kosten/Domain) |
 

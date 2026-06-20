@@ -607,3 +607,7 @@ insert into reviews (farm_id, org_id, rating, author_name, comment, verified) va
 -- Getrennt vom Warenwert (amount_cents -> Hof), damit Plattform-Support separat auditierbar ist.
 alter table sb_payments add column if not exists support_cents integer not null default 0;
 
+-- ===== 0006_harvest =====
+-- Erntedatum je Produkt (Frische-Signal im Finder). Additiv + idempotent.
+alter table products add column if not exists harvested_at date;
+

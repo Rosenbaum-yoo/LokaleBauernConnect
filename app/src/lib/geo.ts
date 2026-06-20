@@ -42,6 +42,12 @@ export function distanceFromPlz(plz: string, lat: number, lng: number): number |
   return Math.round(haversine(c, [lat, lng]) * 10) / 10
 }
 
+/** Distanz (km, gerundet) von einem Ursprung (GPS lat/lng) zu einem Punkt; null bei ungültigen Werten. */
+export function distanceFromCoords(origin: { lat: number; lng: number }, lat: number, lng: number): number | null {
+  if (![origin.lat, origin.lng, lat, lng].every(Number.isFinite)) return null
+  return Math.round(haversine([origin.lat, origin.lng], [lat, lng]) * 10) / 10
+}
+
 export function isValidPlz(plz: string): boolean {
   return /^\d{5}$/.test(plz)
 }

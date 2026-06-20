@@ -1,8 +1,10 @@
 import type { Farm } from '../lib/types'
 import { AvailabilityBadge } from './AvailabilityBadge'
+import { harvestLabel, freshestHarvest } from '../lib/freshness'
 
 export function FarmCard({ farm, onOpen }: { farm: Farm; onOpen: (f: Farm) => void }) {
   const top = farm.products.slice(0, 3)
+  const freshest = harvestLabel(freshestHarvest(farm.products))
   const open = () => onOpen(farm)
   return (
     <article
@@ -34,6 +36,9 @@ export function FarmCard({ farm, onOpen }: { farm: Farm; onOpen: (f: Farm) => vo
             <span className="farm-card__cat" key={c}>{c}</span>
           ))}
         </div>
+        {freshest && (
+          <div className="farm-card__fresh"><span className="lbc-badge lbc-badge--fresh">{freshest}</span></div>
+        )}
         <div className="farm-card__avail">
           {top.map((p) => (
             <AvailabilityBadge key={p.id} value={p.availability} label={`${p.name}`} />

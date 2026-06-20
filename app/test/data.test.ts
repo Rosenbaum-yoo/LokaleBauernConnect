@@ -29,6 +29,34 @@ describe('listFarms (Seed-Modus)', () => {
   })
 })
 
+describe('listFarms — Sortierung & GPS-Standort', () => {
+  const minP = (x: { products: { price: number }[] }) => Math.min(...x.products.map((p) => p.price))
+
+  it('sortiert nach Preis (günstigste zuerst)', async () => {
+    const f = await listFarms({ sort: 'price' })
+    const prices = f.map(minP)
+    expect(prices).toEqual([...prices].sort((a, b) => a - b))
+  })
+
+  it('sortiert nach Bewertung (beste zuerst, ohne Bewertung ans Ende)', async () => {
+    const f = await listFarms({ sort: 'rating' })
+    const ratings = f.map((x) => x.rating ?? 0)
+    expect(ratings).toEqual([...ratings].sort((a, b) => b - a))
+  })
+
+  it('Frische-Sortierung: erster Hof hat ein Erntedatum', async () => {
+    const f = await listFarms({ sort: 'fresh' })
+    expect(f[0].products.some((p) => p.harvestedAt)).toBe(true)
+  })
+
+  it('GPS-Standort liefert Distanz für alle Höfe und sortiert aufsteigend', async () => {
+    const f = await listFarms({ origin: { lat: 52.2731, lng: 8.0512 }, sort: 'distance' })
+    const dists = f.map((x) => x.distanceKm).filter((d): d is number => d != null)
+    expect(dists.length).toBe(9)
+    expect(dists).toEqual([...dists].sort((a, b) => a - b))
+  })
+})
+
 describe('listCategories', () => {
   it('liefert eindeutige, sortierte Kategorien', () => {
     const c = listCategories()

@@ -5,16 +5,26 @@
 
 import { supabase, isSupabaseConfigured } from './supabase'
 import { SEED_FARMS } from './seed'
-import { distanceFromPlz, isValidPlz } from './geo'
+import { distanceFromPlz, distanceFromCoords, isValidPlz } from './geo'
+import { freshestHarvest } from './freshness'
 import type { Availability, Farm, FarmApplicationInput, FarmFilter, Product, Reservation, ReservationInput } from './types'
 
 const RES_KEY = 'lbc_reservations'
 
-function withDistance(farms: Farm[], plz?: string): Farm[] {
-  if (plz && isValidPlz(plz)) {
-    return farms.map((f) => ({ ...f, distanceKm: distanceFromPlz(plz, f.lat, f.lng) }))
+// Distanz pro Hof: GPS-Standort des Kunden hat Vorrang, sonst PLZ-Zentroid, sonst keine.
+function withDistance(farms: Farm[], filter: FarmFilter): Farm[] {
+  if (filter.origin) {
+    return farms.map((f) => ({ ...f, distanceKm: distanceFromCoords(filter.origin!, f.lat, f.lng) }))
+  }
+  if (filter.plz && isValidPlz(filter.plz)) {
+    return farms.map((f) => ({ ...f, distanceKm: distanceFromPlz(filter.plz!, f.lat, f.lng) }))
   }
   return farms.map((f) => ({ ...f, distanceKm: null }))
+}
+
+function minPrice(f: Farm): number {
+  const prices = f.products.map((p) => p.price).filter((n) => Number.isFinite(n))
+  return prices.length ? Math.min(...prices) : Number.POSITIVE_INFINITY
 }
 
 function applyFilter(farms: Farm[], filter: FarmFilter): Farm[] {
@@ -22,13 +32,20 @@ function applyFilter(farms: Farm[], filter: FarmFilter): Farm[] {
   if (filter.category && filter.category !== 'all') {
     out = out.filter((f) => f.categories.includes(filter.category as Farm['categories'][number]))
   }
-  out = withDistance(out, filter.plz)
-  const knownPlz = !!filter.plz && isValidPlz(filter.plz) && out.some((f) => f.distanceKm != null)
+  out = withDistance(out, filter)
+  const hasDistance = out.some((f) => f.distanceKm != null)
   const sort = filter.sort ?? 'distance'
-  if (sort === 'distance' && knownPlz) {
-    out = [...out].sort((a, b) => (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9))
+  const byName = (a: Farm, b: Farm) => a.name.localeCompare(b.name, 'de')
+  if (sort === 'distance' && hasDistance) {
+    out = [...out].sort((a, b) => (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9) || byName(a, b))
+  } else if (sort === 'price') {
+    out = [...out].sort((a, b) => minPrice(a) - minPrice(b) || byName(a, b))
+  } else if (sort === 'rating') {
+    out = [...out].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || (b.ratingCount ?? 0) - (a.ratingCount ?? 0) || byName(a, b))
+  } else if (sort === 'fresh') {
+    out = [...out].sort((a, b) => (freshestHarvest(b.products) ?? '').localeCompare(freshestHarvest(a.products) ?? '') || byName(a, b))
   } else {
-    out = [...out].sort((a, b) => a.name.localeCompare(b.name, 'de'))
+    out = [...out].sort(byName)
   }
   return out
 }
@@ -79,6 +96,7 @@ function mapFarm(row: Record<string, unknown>): Farm {
       price: Number(p.price),
       availability: p.availability as Product['availability'],
       seasonal: Boolean(p.seasonal),
+      harvestedAt: p.harvested_at ? String(p.harvested_at) : undefined,
     })),
   }
 }

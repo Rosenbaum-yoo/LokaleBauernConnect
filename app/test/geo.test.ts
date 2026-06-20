@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { haversine, distanceFromPlz, isValidPlz, centroidForPlz } from '../src/lib/geo'
+import { haversine, distanceFromPlz, distanceFromCoords, isValidPlz, centroidForPlz } from '../src/lib/geo'
 
 describe('isValidPlz', () => {
   it('akzeptiert 5-stellige PLZ', () => { expect(isValidPlz('49074')).toBe(true) })
@@ -30,5 +30,19 @@ describe('distanceFromPlz', () => {
   it('unbekannte PLZ → null', () => { expect(distanceFromPlz('99999', 52, 8)).toBeNull() })
   it('ungültige (NaN) Koordinaten → null statt Riesendistanz', () => {
     expect(distanceFromPlz('49074', NaN, 8)).toBeNull()
+  })
+})
+
+describe('distanceFromCoords (GPS-Standort)', () => {
+  it('gleicher Punkt = 0', () => {
+    expect(distanceFromCoords({ lat: 52.2731, lng: 8.0512 }, 52.2731, 8.0512)).toBe(0)
+  })
+  it('reale Distanz zwischen entfernten Punkten', () => {
+    const d = distanceFromCoords({ lat: 52.2731, lng: 8.0512 }, 53.1291, 8.2488)
+    expect(d).not.toBeNull()
+    expect(d!).toBeGreaterThan(50)
+  })
+  it('ungültige Koordinaten → null', () => {
+    expect(distanceFromCoords({ lat: NaN, lng: 8 }, 52, 8)).toBeNull()
   })
 })

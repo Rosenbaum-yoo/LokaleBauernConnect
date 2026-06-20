@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Farm, FarmFilter, ProductCategory } from '../lib/types'
+import type { Farm, FarmFilter, FarmSort, ProductCategory } from '../lib/types'
 import { listCategories, listFarms } from '../lib/data'
 import { isValidPlz } from '../lib/geo'
 import { FarmCard } from '../components/FarmCard'
@@ -12,9 +12,11 @@ const CATEGORIES = listCategories()
 export function FinderPage() {
   const [plz, setPlz] = useState('')
   const [category, setCategory] = useState<ProductCategory | 'all'>('all')
-  const [sort, setSort] = useState<'distance' | 'name'>('distance')
+  const [sort, setSort] = useState<FarmSort>('distance')
   const [view, setView] = useState<'list' | 'map'>('list')
   const [seasonOnly, setSeasonOnly] = useState(false)
+  const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null)
+  const [geo, setGeo] = useState<'idle' | 'locating' | 'on' | 'denied' | 'unavailable'>('idle')
   const [farms, setFarms] = useState<Farm[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Farm | null>(null)
@@ -22,16 +24,38 @@ export function FinderPage() {
   useEffect(() => {
     let alive = true
     setLoading(true)
-    const filter: FarmFilter = { plz, category, sort }
+    const filter: FarmFilter = { plz, category, sort, origin: origin ?? undefined }
     listFarms(filter).then((res) => {
       if (alive) { setFarms(res); setLoading(false) }
     })
     return () => { alive = false }
-  }, [plz, category, sort])
+  }, [plz, category, sort, origin])
+
+  function locateMe() {
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) { setGeo('unavailable'); return }
+    setGeo('locating')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setOrigin({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setGeo('on'); setSort('distance') },
+      () => setGeo('denied'),
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300_000 },
+    )
+  }
 
   const plzKnown = isValidPlz(plz) && farms.some((f) => f.distanceKm != null)
-  const plzUnknown = isValidPlz(plz) && !plzKnown
+  const plzUnknown = isValidPlz(plz) && !plzKnown && !origin
   const shown = seasonOnly ? farms.filter(farmHasSeasonOffer) : farms
+  const note = (() => {
+    if (sort === 'fresh') return 'Sortiert nach Erntedatum — frischeste zuerst.'
+    if (sort === 'price') return 'Sortiert nach niedrigstem Produktpreis.'
+    if (sort === 'rating') return 'Sortiert nach bester Bewertung.'
+    if (sort === 'name') return 'Alphabetisch sortiert (A–Z).'
+    if (origin) return 'Sortiert nach Entfernung zu deinem Standort.'
+    if (plzKnown) return 'Sortiert nach Entfernung zu deiner PLZ.'
+    if (plzUnknown) return 'Diese PLZ kennen wir noch nicht — wir zeigen alle Höfe. Tipp: „Meinen Standort" für exakte Entfernung.'
+    if (geo === 'denied') return 'Standortzugriff abgelehnt — gib deine PLZ ein, dann sortieren wir nach Nähe.'
+    if (geo === 'unavailable') return 'Standort wird vom Gerät nicht unterstützt — PLZ funktioniert genauso.'
+    return 'Tipp: PLZ eingeben oder „Meinen Standort" nutzen, um die nächsten Höfe zuerst zu sehen.'
+  })()
 
   return (
     <main>
@@ -58,10 +82,21 @@ export function FinderPage() {
           <div className="field field--sort">
             <label className="lbc-label" htmlFor="f-sort">Sortierung</label>
             <select id="f-sort" className="lbc-select" value={sort}
-              onChange={(e) => setSort(e.target.value as 'distance' | 'name')}>
+              onChange={(e) => setSort(e.target.value as FarmSort)}>
               <option value="distance">Nächste zuerst</option>
+              <option value="fresh">Frischeste zuerst</option>
+              <option value="price">Günstigste zuerst</option>
+              <option value="rating">Beste Bewertung</option>
               <option value="name">Name (A–Z)</option>
             </select>
+          </div>
+          <div className="field field--geo">
+            <label className="lbc-label" htmlFor="f-geo">Standort</label>
+            <button id="f-geo" type="button"
+              className={`lbc-btn ${geo === 'on' ? 'lbc-btn--primary' : ''}`}
+              aria-pressed={geo === 'on'} disabled={geo === 'locating'} onClick={locateMe}>
+              {geo === 'locating' ? 'Suche Standort …' : geo === 'on' ? 'Standort aktiv' : 'Meinen Standort'}
+            </button>
           </div>
         </div>
 
@@ -85,11 +120,7 @@ export function FinderPage() {
             <div className="finder-meta__count">
               {loading ? 'Lädt …' : `${shown.length} ${shown.length === 1 ? 'Hof' : 'Höfe'} gefunden${seasonOnly ? ' · Saison' : ''}`}
             </div>
-            <div className="finder-meta__note">
-              {plzKnown && sort === 'distance' && 'Sortiert nach Entfernung zu deiner PLZ.'}
-              {plzUnknown && 'Diese PLZ kennen wir noch nicht — wir zeigen alle Höfe (alphabetisch). Entfernung folgt zum Start deiner Region.'}
-              {!isValidPlz(plz) && 'Tipp: PLZ eingeben, um die nächsten Höfe zuerst zu sehen.'}
-            </div>
+            <div className="finder-meta__note">{note}</div>
           </div>
           <div className="view-toggle" role="group" aria-label="Ansicht wählen">
             <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>Liste</button>

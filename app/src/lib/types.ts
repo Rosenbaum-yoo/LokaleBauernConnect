@@ -17,6 +17,7 @@ export interface Product {
   price: number         // EUR
   availability: Availability
   seasonal?: boolean
+  harvestedAt?: string  // ISO 'YYYY-MM-DD' — Erntedatum (optional, Frische-Signal)
 }
 
 export interface Farm {
@@ -67,10 +68,14 @@ export interface Reservation extends ReservationInput {
   createdAt: string
 }
 
+export type FarmSort = 'distance' | 'name' | 'price' | 'rating' | 'fresh'
+
 export interface FarmFilter {
   plz?: string
   category?: ProductCategory | 'all'
-  sort?: 'distance' | 'name'
+  sort?: FarmSort
+  /** Ursprung für Entfernung (GPS-Standort des Kunden); überschreibt das PLZ-Zentroid. */
+  origin?: { lat: number; lng: number }
   limit?: number
 }
 

@@ -164,3 +164,22 @@ SEED_FARMS.forEach((f) => {
   const r = SEED_RATINGS[f.id]
   if (r) { f.rating = r.rating; f.ratingCount = r.count; f.reputationGrade = r.grade }
 })
+
+// Erntedatum-Overlay (Demo) — Frische als Verkaufsargument. In der DB pflegt der Erzeuger das Datum selbst.
+// Relativ zu „heute" berechnet, damit die Demo immer frisch wirkt; nur Verderbliches bekommt ein Datum.
+function daysAgo(n: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() - n)
+  return d.toISOString().slice(0, 10)
+}
+const SEED_HARVEST: Record<string, number> = {
+  p1: 0, p2: 0, p3: 1,   // Sonnenwiese: Erdbeeren & Eier heute, Tomaten gestern
+  p8: 3, p10: 2,         // Eichkamp: Kartoffeln, Möhren
+  p13: 0,                // Mertens: Blumen heute
+  p15: 1, p16: 1,        // Wiebusch: Fleisch gestern
+  p18: 0, p19: 2,        // Deichkrone: Johannisbeeren heute, Saft
+  p23: 1, p24: 0,        // Werretal: Gemüsekiste gestern, Wachteleier heute
+}
+SEED_FARMS.forEach((f) => f.products.forEach((p) => {
+  if (p.id in SEED_HARVEST) p.harvestedAt = daysAgo(SEED_HARVEST[p.id])
+}))

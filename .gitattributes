@@ -1,0 +1,12 @@
+# Konsistente Zeilenenden über alle Plattformen (verhindert CRLF/LF-Rauschen)
+* text=auto eol=lf
+
+# Binär (nie als Text behandeln)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

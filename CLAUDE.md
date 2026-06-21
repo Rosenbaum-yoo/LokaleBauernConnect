@@ -23,6 +23,8 @@
 7. **Zukunfts-/Marktführer-Standard** — State-of-the-Art von übermorgen, kategorie-definierend.
 8. **Durcharbeiten statt Pausieren** — an Stopp-Punkten den nächsten Mehrwert liefern; Pause nur bei echtem Bedarf.
 9. **Test-Integrität** — Code an Tests anpassen, nie Tests zurechtbiegen.
+10. **Selbst-Update-Automatik (Owner-Direktive 2026-06-21, verbindlich).** Nach JEDEM Prompt automatisch — ohne erneute Aufforderung: (a) Projekt-Skill `.agents/skills/lokalebauernconnect-project/SKILL.md` mit neuen, durablen Wahrheiten nachziehen (Features/Entscheidungen/Dateien/Stand/Gates); (b) **relevanzgeprüft** prüfen, ob die Erkenntnis die *zukünftige* Arbeitsweise effizienter/output-stärker macht — nur dann `CLAUDE.md` + `.claude/learning/insights_inbox.md` anpassen (Relevanzfilter, kein Rauschen). Ziel: über die Zeit WENIGER Token, MEHR + hochwertigerer Output, inkrementell, **ohne Fehlertoleranz**.
+11. **Innovation×Team · Marktführer-Niveau · Token↓/Qualität↑ (Prio).** Liefere so, dass niemand glaubt, eine Einzelperson hätte es in der Zeit geschafft — Niveau „extrem talentiert bis weltklasse", marktführerwürdig, mit echter Innovation. Maximaler Einsatz zu Beginn, dann gelernte Muster wiederverwenden → gleiches Niveau bei sinkendem Verbrauch. **Workflows/Multi-Agent nur, wo sie echte Tiefe/Abdeckung bringen** (Research, Multi-File-Build, adversariale Verifikation) — NIE für fokussierte Einzel-Edits (Token-Disziplin).
 
 ---
 

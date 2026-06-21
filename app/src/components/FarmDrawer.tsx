@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import type { Farm, Product } from '../lib/types'
 import { AvailabilityBadge } from './AvailabilityBadge'
 import { createReservation } from '../lib/data'
+import { downloadReservationConfirmation } from '../lib/pdf'
 
 type Status = 'idle' | 'sending' | 'ok' | 'err'
 
@@ -164,7 +165,19 @@ export function FarmDrawer({ farm, onClose }: { farm: Farm | null; onClose: () =
                     </button>
                   </>
                 )}
-                {status === 'ok' && <div className="reserve-msg reserve-msg--ok" role="status">{msg}</div>}
+                {status === 'ok' && (
+                  <div className="reserve-msg reserve-msg--ok" role="status">
+                    {msg}
+                    {selected && (
+                      <button type="button" className="lbc-btn lbc-btn--sm" style={{ marginTop: 10 }}
+                        onClick={() => downloadReservationConfirmation({
+                          farmName: farm.name, productName: selected.name, unit: selected.unit, quantity: qty,
+                          pickupWindow: pickup, name: name.trim(), contact: contact.trim(),
+                          priceTotal: selected.price * qty, address: `${farm.plz} ${farm.city}, ${farm.street}`,
+                        })}>Bestätigung als PDF</button>
+                    )}
+                  </div>
+                )}
                 {status === 'err' && <div className="reserve-msg reserve-msg--err" role="alert">{msg}</div>}
               </form>
             </div>

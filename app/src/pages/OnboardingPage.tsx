@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { OnboardingWizard } from '../components/OnboardingWizard'
 import { createFarmApplication } from '../lib/data'
+import { downloadApplicationConfirmation } from '../lib/pdf'
 import type { OnboardingData } from '../lib/onboardingForm'
 import type { FarmType, ProductCategory } from '../lib/types'
 
@@ -9,6 +10,7 @@ export function OnboardingPage() {
   const [done, setDone] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState(false)
+  const [last, setLast] = useState<OnboardingData | null>(null)
 
   async function handle(d: OnboardingData) {
     setSubmitting(true); setErr(false)
@@ -23,7 +25,7 @@ export function OnboardingPage() {
       declFoodLaw: d.declFoodLaw === 'true',
     })
     setSubmitting(false)
-    if (ok) setDone(true); else setErr(true)
+    if (ok) { setLast(d); setDone(true) } else setErr(true)
   }
 
   return (
@@ -38,7 +40,15 @@ export function OnboardingPage() {
             Wir prüfen deinen Hof und melden uns per E-Mail. Nach der Freigabe richten wir gemeinsam dein Hofprofil ein —
             danach pflegst du Verfügbarkeit & Abholfenster selbst, ganz vom Handy.
           </p>
-          <Link to="/" className="lbc-btn lbc-btn--primary" style={{ marginTop: 18 }}>Zurück zum Finder</Link>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
+            {last && (
+              <button type="button" className="lbc-btn" onClick={() => downloadApplicationConfirmation({
+                name: last.name, producerKind: last.producerKind, type: last.type, email: last.email,
+                street: last.street, plz: last.plz, city: last.city, categories: last.categories as string[],
+              })}>Bestätigung als PDF</button>
+            )}
+            <Link to="/" className="lbc-btn lbc-btn--primary">Zurück zum Finder</Link>
+          </div>
         </div>
       ) : (
         <>

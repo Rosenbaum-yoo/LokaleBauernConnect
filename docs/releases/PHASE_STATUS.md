@@ -28,6 +28,12 @@
 | 4 | Track D Erzeuger-Self-Service | ✅ fertig | 2026-06-20 | `/hof/:farmId`: Verfügbarkeit pflegen + Reservierungen + **druckbarer SB-Stand-QR** (qrcode.react); verifiziert (Demo; in Prod RLS-/Login-gated) |
 | 5 | Gate 10 (zahlende Kunden) | offen | — | Marktstart-Schwelle |
 | — | Bauplan-Doku | vorhanden | 2026-06-20 | Bauplan-Dateien (Wellen/Phasen) erstellt — `finalization/` (00_RULES/01_PRIORITIES/99_GOLIVE_GATE, WAVE_00–15, phase2–5) jetzt vorhanden; siehe `MASTER_INDEX.md` §7 |
+| 4 | Finder-Premium | ✅ fertig | 2026-06-21 | **GPS-Entfernung** (+ PLZ-Fallback), **Erntedatum/Frische** auf Cards, Sortierung Entfernung/Frische/Preis/Bewertung/A–Z; Mig 0006 `harvested_at`; getestet |
+| 4 | Erzeuger-Typen Privat/Verein | ✅ fertig | 2026-06-21 | Onboarding gewerblich/**Privat-Hobby**/**Verein** + Pflicht-Selbsterklärungen + Disclaimer; Finder-Badge; Mig 0007; **Kleingarten bewusst ausgeschlossen (BKleingG)**; `docs/legal/PRIVATVERKAUF_KLEINGARTEN_VEREIN.md` |
+| 4 | Globale PDF-Belege | ✅ fertig | 2026-06-21 | `pdf-lib` (lazy, eigener Chunk), gebrandeter Generator; Onboarding- + Reservierungs-Bestätigung als Download; SB-Quittung folgt server-seitig (Webhook); getestet |
+| 4/5 | Provisionsmodell (statt Abos) | 🔨 dokumentiert | 2026-06-21 | Transaktions-Provision (empf. 1/5 = 6 %, Premium 39 €, Bronze..Platin, Floor 1,2 % + 0,25 €/Tx) — `fees.ts` (Single Source) + `COMMERCIAL_SOURCE_OF_TRUTH.md` + ADR 0003; **Owner-Freigabe + Stripe-Connect-Bau ausstehend** |
+| — | SB-Unterstützungsbeitrag | ✅ fertig | 2026-06-21 | Freiwilliger Plattform-Beitrag im SB-Korb (eigener Checkout-Posten, getrennt vom Warenwert); Mig 0005 `support_cents` |
+| 1 | CI + Git | ✅ / account-gated | 2026-06-21 | Repo **public** auf GitHub, GitHub-Actions-CI (typecheck/test/build); CI-Lauf wartet auf E-Mail-Verifizierung des Accounts (lokal alles grün) |
 
 ## Enterprise-Readiness (Ziel ≥ 85 %)
 | Bereich | Stand | Score |
@@ -37,7 +43,7 @@
 | Datenmodell + RLS | 🔨 Code (Migration+RLS+Seed+Wiring) | 70 % |
 | Auth / RBAC | 🔨 Gerüst + RLS-Härtung (Review-Fixes) | 45 % |
 | Billing (Stripe + SB-USP + Abo-UI) | 🔨 Backend + UI (Keys fehlen) | 55 % |
-| QA-Tests | ✅ **55 Tests** grün · Coverage **84 %** (reine Logik/UI 95–100 %; Supabase/Stripe-Integration live-verifiziert statt gemockt, AGENTS-Regel) | 90 % |
+| QA-Tests | ✅ **87 Tests** grün · reine Logik/UI ~95–100 % (Supabase/Stripe-Integration live-verifiziert statt gemockt, AGENTS-Regel) | 92 % |
 | Observability | 🔨 Error-Capture + Beacon + ErrorBoundary + **/status Health-Page** | 75 % |
 | Erzeuger (Onboarding/Self-Service/Abo) | ✅ Demo end-to-end | 75 % |
 | Staff-Konsole | 🔨 Bewerbungen + Reservierungs-Übersicht | 70 % |
